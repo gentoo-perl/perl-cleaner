@@ -126,7 +126,7 @@ function ebuild_rebuild() {
    if [ -s ${EBUILDS_PREINSTALL} ]; then
   
      if [ ! -z $ASK ]; then
-        echo "Press Enter to see the list of ebuilds we'll be avaluating"
+        echo "Press Enter to see the list of ebuilds we'll be evaluating"
         read key
         $PAGER ${EBUILDS_PREINSTALL}
         printf "Continue? (Y/N) "
@@ -205,11 +205,11 @@ function ebuild_rebuild() {
 
 function libperl_list() {
    echo "$(date) : Locating ebuilds linked against libperl" | tee -a $LOG
-   for i in $(find $(egrep -v ^# /etc/ld.so.conf) -type f -name '*.so*' ! -newer /usr/lib/libperl.so ) \
-         $(find $(echo $PATH | sed 's/:/ /g') -type f -perm +0111 ! -newer /usr/lib/libperl.so ) ;
+   for i in $(find $(egrep -v ^# /etc/ld.so.conf) -type f -name '*.so*' ! -newer /usr/lib/libperl.so 2>/dev/null) \
+         $(find $(echo $PATH | sed 's/:/ /g') -type f -perm +0111 ! -newer /usr/lib/libperl.so 2>/dev/null) ;
    do
      if [ -f ${i} ]; then
-        ldd ${i} 2>&1 | grep "libperl" - >/dev/null && grep -l $i $PKGDIR/*/*/CONTENTS>>${MODULES_LIST};
+        ldd ${i} 2>&1 | grep "libperl" - >/dev/null && grep -l " $i " $PKGDIR/*/*/CONTENTS>>${MODULES_LIST};
      fi
    done 
 
