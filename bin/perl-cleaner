@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 # sort of a changelog if you want to call it that...
 # version 1.2 - swtaylor gave some good pointers on making the tmp files, as well as reminding me of grep's -f functionality :)
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
@@ -75,7 +76,7 @@ function ph_clean() {
    for DIR in $INC; do
 	 for empty in $(find $DIR -type d); do
 		# Silently remove those dirs that we just emptied
-	 	rmdir $empty  >/dev/null 2>&1
+		find ${ROOT}/$DIR -depth -type d | xargs -r rmdir &> /dev/null
    	 done
    done
 }
