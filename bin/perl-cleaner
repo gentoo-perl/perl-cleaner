@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -xv
 
 
 # sort of a changelog if you want to call it that...
@@ -14,6 +14,11 @@ if [ "${PERL}x" == "x" ]; then
 fi
 eval $(perl '-V:version')
 PERL_VERSION=${version}
+
+source /sbin/functions.sh || {
+        echo "$0: Could not source /sbin/functions.sh!"
+        exit 1
+}
 
 TMPDIR=${TMPDIR:-/tmp}
 
@@ -73,20 +78,16 @@ function ph_update() {
    cd /usr/include/linux; h2ph * | tee -a $LOG
 }
 
+
 # Build a list of modules installed under older perls - only valid if the module was an ebuild :)
 function module_list() {
-# Reset INC - INC is dynamically generated, and if we removed any ph 
-# files - and they were the only thing left in a dir - then there's 
-# no sense in revisiting that dir
    echo "$(date) : Building list of modules for reinstall" | tee -a $LOG
-   INC=$(perl -e 'for $line (@INC) { next if $line eq "."; next if $line =~ m/'${PERL_VERSION}'/; print "$line\n" }')
-   MODFIND=$(mktemp ${TMPDIR}/modules.found.XXXXXXXXXX)
    echo "Locating modules for reinstall"
-   for file in $(find $INC -iname "*.pm" -type f 2>/dev/null | grep -v "${PERL_VERSION}"); do
-      echo "$file" >>$MODFIND
-   done
-   grep -f $MODFIND -l $PKGDIR/*/*/CONTENTS >${MODULES_LIST}
-   rm $MODFIND
+    for checkfile in `find $PKGDIR -maxdepth 3 -mindepth 3 -name "CONTENTS" |xargs grep -l /usr/$(get_libdir)/perl5 `; do 
+	if [ "`grep -l "${PERL_VERSION}" $checkfile`x" = "x" ]; then
+		 echo "$checkfile" >> ${MODULES_LIST} 
+	fi; 
+    done
 }
 
 function alternate_module_list() {
@@ -207,8 +208,8 @@ function ebuild_rebuild() {
 
 function libperl_list() {
    echo "$(date) : Locating ebuilds linked against libperl" | tee -a $LOG
-   for i in $(find $(egrep -v "^#" /etc/ld.so.conf) -type f -name '*.so*' ! -newer /usr/lib/libperl.so 2>/dev/null) \
-            $(find $(echo $PATH | sed 's/:/ /g') -type f -perm +0111 ! -newer /usr/lib/libperl.so 2>/dev/null) ;
+   for i in $(find $(egrep -v "^#" /etc/ld.so.conf) -type f -name '*.so*' ! -newer /usr/$(get_libdir)/libperl.so 2>/dev/null) \
+            $(find $(echo $PATH | sed 's/:/ /g') -type f -perm +0111 ! -newer /usr/$(get_libdir)/libperl.so 2>/dev/null) ;
    do
       if [ -f ${i} ]; then
          ldd ${i} 2>&1 | grep "libperl" - >/dev/null && grep -l " $i " $PKGDIR/*/*/CONTENTS>>${MODULES_LIST};
