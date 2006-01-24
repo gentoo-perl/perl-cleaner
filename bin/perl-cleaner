@@ -1,4 +1,4 @@
-#!/bin/bash -xv
+#!/bin/bash
 
 
 # sort of a changelog if you want to call it that...
@@ -14,7 +14,7 @@ if [ "${PERL}x" == "x" ]; then
 fi
 eval $(perl '-V:version')
 PERL_VERSION=${version}
-
+gPERL_VERSION=`echo $PERL_VERSION|sed -e 's|\.|\\\.|g'`
 source /sbin/functions.sh || {
         echo "$0: Could not source /sbin/functions.sh!"
         exit 1
@@ -61,7 +61,7 @@ function ph_clean() {
 
    echo "Locating ph files for removal"
       for file in $(find $INC -name "*.ph" -type f 2>/dev/null); do
-         if [ ! $(echo "$file"|grep $PERL_VERSION) ]; then
+         if [ ! $(echo "$file"|grep $gPERL_VERSION) ]; then
             echo "$(date) : Removing old ph file: $file" | tee -a $LOG
             rm $file
          fi
@@ -84,7 +84,7 @@ function module_list() {
    echo "$(date) : Building list of modules for reinstall" | tee -a $LOG
    echo "Locating modules for reinstall"
     for checkfile in `find $PKGDIR -maxdepth 3 -mindepth 3 -name "CONTENTS" |xargs grep -l /usr/$(get_libdir)/perl5 `; do 
-	if [ "`grep -l "${PERL_VERSION}" $checkfile`x" = "x" ]; then
+	if [ "`grep -l "${gPERL_VERSION}" $checkfile`x" = "x" ]; then
 		 echo "$checkfile" >> ${MODULES_LIST} 
 	fi; 
     done
@@ -101,7 +101,7 @@ function alternate_module_list() {
    INC=$(perl -e 'for $line (@INC) { next if $line eq "."; next if $line =~ m/'${PERL_VERSION}'/; print "$line\n" }')
    INSTALLED_EBUILDS=$(find $PKGDIR -name CONTENTS)
    echo "Locating modules for reinstall"
-   for file in $(find $INC -iname "*.pm" \! -type f 2>/dev/null | grep -v "${PERL_VERSION}"| sort -u); do
+   for file in $(find $INC -iname "*.pm" \! -type f 2>/dev/null | grep -v "${gPERL_VERSION}"| sort -u); do
       PKG=$(for ebuild in $INSTALLED_EBUILDS; do if grep -l $file $ebuild; then break; fi; done)
       if [ -z "$PKG" ] ; then
          echo "Warning: $file is not owned by a currently installed ebuild"
@@ -228,7 +228,7 @@ function leftovers() {
 
 
    INC=$(perl -e 'for $line (@INC) { next if $line eq "."; next if $line =~ m/'${PERL_VERSION}'/; print "$line\n" }')
-   for file in $(find $INC -type f 2>/dev/null |grep -v  "${PERL_VERSION}" ) ; do
+   for file in $(find $INC -type f 2>/dev/null |grep -v  "${gPERL_VERSION}" ) ; do
       echo "$(date) : ${file}" | tee -a $LOG
    done
 }
@@ -329,7 +329,7 @@ while [ ! -z "$1" ] ; do
    esac
 done
 
-$FORCE && PERL_VERSION="0.0.0"
+$FORCE && PERL_VERSION="0.0.0" && gPERL_VERSION="0\.0\.0"
 $PHCLEAN && ph_clean
 $PHUPDATE && ph_update
 $MODULES && module_list
