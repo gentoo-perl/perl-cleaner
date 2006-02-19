@@ -2,6 +2,7 @@
 
 
 # sort of a changelog if you want to call it that...
+# grep -E '/usr/lib*/perl5/' */*/CONTENTS > to make my list :)
 # version 1.2 - swtaylor gave some good pointers on making the tmp files, as well as reminding me of grep's -f functionality :)
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
@@ -83,7 +84,7 @@ function ph_update() {
 function module_list() {
    echo "$(date) : Building list of modules for reinstall" | tee -a $LOG
    echo "Locating modules for reinstall"
-    for checkfile in `find $PKGDIR -maxdepth 3 -mindepth 3 -name "CONTENTS" |xargs grep -l /usr/$(get_libdir)/perl5 `; do 
+    for checkfile in `find $PKGDIR -maxdepth 3 -mindepth 3 -name "CONTENTS" |xargs grep -El '/usr/lib*/perl5/' `; do 
 	if [ "`grep -l "${gPERL_VERSION}" $checkfile`x" = "x" ]; then
 		 echo "$checkfile" >> ${MODULES_LIST} 
 	fi; 
@@ -109,6 +110,25 @@ function alternate_module_list() {
          echo "$PKG" >>${MODULES_LIST}
       fi
    done
+}
+
+# Revirter is to address those modules that have been replaced with virtuals and are now
+# satisfied with the dev-lang/perl ebuild itself. By unmerging and re-emerging, we 
+# re-emerge any virtual that replaces a perl-core module, worst case rebuilding a perl-core
+# module but in most cases (because if there is a virtual it is provided by a dev-lang perl build 
+# as well) we are actually freeing up some namespace.
+function revirter() {
+	cd $PKGDIR
+	for pkg in $(find perl-core/ -maxdepth 1 -mindepth 1 -type d 2>/dev/null); do
+		virt=${pkg/perl-core\//virtual\/perl-}
+		if [ "`emerge --oneshot -p =$virt|grep \"no ebuilds to satisfy\"`x" = "x" ]; then
+			# A virtual exists
+			echo "Unmerging =$pkg"
+			emerge unmerge "=$pkg"
+			echo "Emerging >=$virt"
+			emerge --oneshot ${EMERGE_OPTIONS} ">=$virt"
+		fi
+	done
 }
 
 # The meat of it - rebuilding the ebuilds
@@ -208,8 +228,8 @@ function ebuild_rebuild() {
 
 function libperl_list() {
    echo "$(date) : Locating ebuilds linked against libperl" | tee -a $LOG
-   for i in $(find $(egrep -v "^#" /etc/ld.so.conf) -type f -name '*.so*' ! -newer /usr/$(get_libdir)/libperl.so 2>/dev/null) \
-            $(find $(echo $PATH | sed 's/:/ /g') -type f -perm +0111 ! -newer /usr/$(get_libdir)/libperl.so 2>/dev/null) ;
+   for i in $(find $(egrep -v "^#" /etc/ld.so.conf) -type f -name '*.so*' ! -newer /usr/lib/libperl.so 2>/dev/null) \
+            $(find $(echo $PATH | sed 's/:/ /g') -type f -perm +0111 ! -newer /usr/lib/libperl.so 2>/dev/null) ;
    do
       if [ -f ${i} ]; then
          ldd ${i} 2>&1 | grep "libperl" - >/dev/null && grep -l " $i " $PKGDIR/*/*/CONTENTS>>${MODULES_LIST};
@@ -238,6 +258,7 @@ function usage() {
    printf "\tmodules - rebuild perl modules for old installs of perl\n"
    printf "\tallmodules - rebuild perl modules for any install of perl\n"
    printf "\tlibperl - rebuild anything linked against libperl\n"
+   printf "\trevirter - replace perl-core modules with virtuals\n"
    printf "\tph-clean - clean out old ph files from a previous perl\n"
    printf "\tphupdate - update existing ph files, useful after an upgrade to system parts like the kernel\n"
    printf "\tphall - clean out old ph files and run phupdate\n"
@@ -256,6 +277,7 @@ fi
 EMERGE_OPTIONS=""
 ASK=""
 MODULES=false
+REVIRTER=false
 LIBPERL=false
 PHCLEAN=false
 PHUPDATE=false
@@ -277,6 +299,7 @@ while [ ! -z "$1" ] ; do
          ;;
       allmodules )
          MODULES=true
+	 REVIRTER=true
          FORCE=true
          shift
          ;;
@@ -297,12 +320,17 @@ while [ ! -z "$1" ] ; do
          PHUPDATE=true
          shift
          ;;
+      revirter )
+	 REVIRTER=true
+	 shift
+	 ;;
       all )
          MODULES=true
          LIBPERL=true
          PHCLEAN=true
          PHUPDATE=true
          LEFTOVERS=true
+	 REVIRTER=true
          shift
          ;;
       reallyall )
@@ -311,7 +339,8 @@ while [ ! -z "$1" ] ; do
          PHCLEAN=true
          PHUPDATE=true
          FORCE=true
-         shift
+         REVIRTER=true
+	shift
          ;;
       ask )
          ASK="true"
@@ -335,6 +364,7 @@ $PHUPDATE && ph_update
 $MODULES && module_list
 $LIBPERL && libperl_list
 ($MODULES || $LIBPERL) && ebuild_rebuild
+$REVIRTER && revirter
 $LEFTOVERS && leftovers
 
 #postclean
