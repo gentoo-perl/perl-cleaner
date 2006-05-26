@@ -121,24 +121,6 @@ function alternate_module_list() {
    done
 }
 
-# Revirter is to address those modules that have been replaced with virtuals and are now
-# satisfied with the dev-lang/perl ebuild itself. By unmerging and re-emerging, we 
-# re-emerge any virtual that replaces a perl-core module, worst case rebuilding a perl-core
-# module but in most cases (because if there is a virtual it is provided by a dev-lang perl build 
-# as well) we are actually freeing up some namespace.
-function revirter() {
-	cd $PKGDIR
-	for pkg in $(find perl-core/ -maxdepth 1 -mindepth 1 -type d 2>/dev/null); do
-		virt=${pkg/perl-core\//virtual\/perl-}
-		if [ "`emerge --oneshot -p =$virt|fgrep \"no ebuilds to satisfy\"`x" = "x" ]; then
-			# A virtual exists
-			echo "Unmerging =$pkg"
-			emerge unmerge "=$pkg"
-			echo "Emerging >=$virt"
-			emerge --oneshot ${EMERGE_OPTIONS} ">=$virt"
-		fi
-	done
-}
 
 # The meat of it - rebuilding the ebuilds
 # ALL emerges are oneshots - we don't want to mess with the world file
@@ -308,7 +290,6 @@ function usage() {
    printf "\tmodules - rebuild perl modules for old installs of perl\n"
    printf "\tallmodules - rebuild perl modules for any install of perl\n"
    printf "\tlibperl - rebuild anything linked against libperl\n"
-   printf "\trevirter - replace perl-core modules with virtuals\n"
    printf "\tph-clean - clean out old ph files from a previous perl\n"
    printf "\tphupdate - update existing ph files, useful after an upgrade to system parts like the kernel\n"
    printf "\tphall - clean out old ph files and run phupdate\n"
@@ -327,7 +308,6 @@ fi
 EMERGE_OPTIONS=""
 ASK=""
 MODULES=false
-REVIRTER=false
 LIBPERL=false
 PHCLEAN=false
 PHUPDATE=false
@@ -349,7 +329,6 @@ while [ ! -z "$1" ] ; do
          ;;
       allmodules )
          MODULES=true
-	 REVIRTER=true
          FORCE=true
          shift
          ;;
@@ -370,17 +349,12 @@ while [ ! -z "$1" ] ; do
          PHUPDATE=true
          shift
          ;;
-      revirter )
-	 REVIRTER=true
-	 shift
-	 ;;
       all )
          MODULES=true
          LIBPERL=true
          PHCLEAN=true
          PHUPDATE=true
          LEFTOVERS=true
-	 REVIRTER=true
          shift
          ;;
       reallyall )
@@ -389,7 +363,6 @@ while [ ! -z "$1" ] ; do
          PHCLEAN=true
          PHUPDATE=true
          FORCE=true
-         REVIRTER=true
 	shift
          ;;
       ask )
@@ -414,7 +387,6 @@ $PHUPDATE && ph_update
 $MODULES && module_list
 $LIBPERL && libperl_list
 ($MODULES || $LIBPERL) && ebuild_rebuild
-$REVIRTER && revirter
 $LEFTOVERS && leftovers
 
 #postclean
