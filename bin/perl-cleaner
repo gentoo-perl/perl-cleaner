@@ -62,17 +62,19 @@ function postclean {
 function ph_clean() {
    echo ""
    echo "$(date) : Beginning a clean up of .ph files" | tee -a $LOG
+   echo "Excluding perl-${PERL_VERSION} from cleaning" | tee -a $LOG
 
    INC=$(perl -e 'for $line (@INC) { next if $line eq "."; next if $line =~ m/'${PERL_VERSION}'/; print "$line\n" }')
-
+   if [ "${INC}x" != "x" ]; then
    echo "Locating ph files for removal"
       for file in $(find $INC -name "*.ph" -type f 2>/dev/null); do
-         if [ ! $(echo "$file"|fgrep $gPERL_VERSION) ]; then
+         if [ ! $(echo "$file"|grep $gPERL_VERSION) ]; then
             echo ""
             echo "$(date) : Removing old ph file: $file" | tee -a $LOG
             rm $file
          fi
-   done
+      done
+   fi
 
    # Silently remove those dirs that we just emptied
    find $INC -depth -type d 2>/dev/null | xargs -r rmdir 2>/dev/null
