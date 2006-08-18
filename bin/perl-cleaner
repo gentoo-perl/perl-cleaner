@@ -84,7 +84,7 @@ function ph_clean() {
 function ph_update() {
    echo ""
    echo "$(date) : Updating ph files" | tee -a $LOG
-   cd /usr/include; h2ph * sys/* arpa/* netinet/* bits/* security/* asm/* gnu/* linux/* | tee -a $LOG
+   cd /usr/include; h2ph -r sys/* arpa/* netinet/* bits/* security/* asm/* gnu/* linux/* gentoo* | tee -a $LOG
    cd /usr/include/linux; h2ph * | tee -a $LOG
 }
 
