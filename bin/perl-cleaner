@@ -64,11 +64,14 @@ function ph_clean() {
    echo "$(date) : Beginning a clean up of .ph files" | tee -a $LOG
    echo "Excluding perl-${PERL_VERSION} from cleaning" | tee -a $LOG
 
-   INC=$(perl -e 'for $line (@INC) { next if $line eq "."; next if $line =~ m/'${PERL_VERSION}'/; print "$line\n" }')
+   local PV=${version}
+   local gPV=`echo $PV|sed -e 's|\.|\\\.|g'`
+   INC=$(perl -e 'for $line (@INC) { next if $line eq "."; next if $line =~
+   m/'${PV}'/; print "$line\n" }')
    if [ "${INC}x" != "x" ]; then
    echo "Locating ph files for removal"
       for file in $(find $INC -name "*.ph" -type f 2>/dev/null); do
-         if [ ! $(echo "$file"|grep $gPERL_VERSION) ]; then
+         if [ ! $(echo "$file"|grep $gPV) ]; then
             echo ""
             echo "$(date) : Removing old ph file: $file" | tee -a $LOG
             rm $file
@@ -77,7 +80,7 @@ function ph_clean() {
    fi
 
    # Silently remove those dirs that we just emptied
-   find $INC -depth -type d 2>/dev/null | xargs -r rmdir 2>/dev/null
+   find $INC -depth -type d 2>/dev/null | grep -v $gPV | xargs -r rmdir 2>/dev/null
 }
 
 # Generate ph files; this is useful if we've upgraded packages with headers so that perl knows the new info
