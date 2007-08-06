@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Version 1.4
 #- patches from Wade Fitzpatrick for equery and fgrep suggestions (bug 125674), 
@@ -13,15 +13,15 @@
 
 # First and foremost - make sure we have a perl to work with...
 PERL=$(which perl)
-if [ "${PERL}x" == "x" ]; then
+if [ "${PERL}x" = "x" ]; then
    echo "NO PERL INSTALLED!! (at least not in your path)"
    exit
 fi
 eval $(perl '-V:version')
 PERL_VERSION=${version}
 gPERL_VERSION=`echo $PERL_VERSION|sed -e 's|\.|\\\.|g'`
-source /sbin/functions.sh || {
-        echo "$0: Could not source /sbin/functions.sh!"
+. /etc/init.d/functions.sh || {
+        echo "$0: Could not source /init.d/functions.sh!"
         exit 1
 }
 
@@ -38,7 +38,7 @@ EBUILDS_PREINSTALL=$(mktemp ${TMPDIR}/ebuilds.preinstall.XXXXXXXXXX)
 EBUILDS_ORDERED=$(mktemp ${TMPDIR}/ebuilds.ordered.XXXXXXXXXX)
 EBUILDS_REINSTALL=$(mktemp ${TMPDIR}/ebuilds.reinstall.XXXXXXXXXX)
 
-function postclean {
+postclean() {
    for FILE in ${MODULES_LIST} ${EBUILDS_PREINSTALL} ${EBUILDS_ORDERED} ${EBUILDS_REINSTALL}; do
 
       if [ -f $FILE ]; then
@@ -59,7 +59,7 @@ function postclean {
 }
 
 # This is to clean out the old .ph files generated in our last perl install
-function ph_clean() {
+ph_clean() {
    echo ""
    echo "$(date) : Beginning a clean up of .ph files" | tee -a $LOG
    echo "Excluding perl-${PERL_VERSION} from cleaning" | tee -a $LOG
@@ -84,7 +84,7 @@ function ph_clean() {
 }
 
 # Generate ph files; this is useful if we've upgraded packages with headers so that perl knows the new info
-function ph_update() {
+ph_update() {
    echo ""
    echo "$(date) : Updating ph files" | tee -a $LOG
    cd /usr/include; h2ph * | tee -a $LOG
@@ -94,7 +94,7 @@ function ph_update() {
 
 
 # Build a list of modules installed under older perls - only valid if the module was an ebuild :)
-function module_list() {
+module_list() {
    echo ""
    echo "$(date) : Building list of modules for reinstall" | tee -a $LOG
    echo "Locating modules for reinstall"
@@ -105,7 +105,7 @@ function module_list() {
     done
 }
 
-function alternate_module_list() {
+alternate_module_list() {
    # Takes longer to run, but identifes modules not associated with
    # an ebuild.
    #
@@ -133,7 +133,7 @@ function alternate_module_list() {
 # We first attempt to emerge the specific module that was installed last time
 # If that fails, we attempt to install a newer version
 
-function ebuild_rebuild() {
+ebuild_rebuild() {
 
    echo ""
    echo "$(date) : Rebuilding modules: Building list of ebuilds" | tee -a $LOG
@@ -226,7 +226,7 @@ function ebuild_rebuild() {
          fi
 
          # Cut down to one line so portage can handle ordering these appropriately
-         emerge -pq --oneshot $(cat ${EBUILDS_ORDERED} ) | fgrep ebuild | sed -e 's:\([^ ]\+\):=\1:g' -e 's:.*\] \([^ ]*\) .*:\1:'>>${EBUILDS_REINSTALL}
+         emerge -pq --oneshot $(cat ${EBUILDS_ORDERED}) | sed -n -e 's/^\[ebuild .*\] \([^ ]*\).*/=\1/p' >>${EBUILDS_REINSTALL}
 
          echo ""
          echo "Reinstalling ebuilds"
@@ -257,7 +257,7 @@ function ebuild_rebuild() {
 # The coup is in ! -newer libperl.so - cut out anything that was obviously installed
 # after our last install of libperl, which should cut out the false positives.
 
-function libperl_list() {
+libperl_list() {
    echo ""
    echo "$(date) : Locating ebuilds linked against libperl" | tee -a $LOG
    for i in $(find $(egrep -v "^#" /etc/ld.so.conf) -type f -name '*.so*' ! -newer /usr/lib/libperl.so 2>/dev/null) \
@@ -275,7 +275,7 @@ function libperl_list() {
 }
 
 # Assuming a successful module run, look to see whats left over
-function leftovers() {
+leftovers() {
    echo ""
    echo "$(date) : Finding left over modules" | tee -a $LOG
 
@@ -291,7 +291,7 @@ function leftovers() {
    done
 }
 
-function usage() {
+usage() {
    echo "Usage: $0 [options] [ask]"
    printf "\tmodules - rebuild perl modules for old installs of perl\n"
    printf "\tallmodules - rebuild perl modules for any install of perl\n"
