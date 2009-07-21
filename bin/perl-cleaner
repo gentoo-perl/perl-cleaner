@@ -1,7 +1,10 @@
-#!/bin/sh
+#!/bin/bash
+# vim: set et sw=4 sts=4 tw=80:
+# Copyright 2005-2008 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License v2
 
 # Version 1.4
-#- patches from Wade Fitzpatrick for equery and fgrep suggestions (bug 125674), 
+#- patches from Wade Fitzpatrick for equery and fgrep suggestions (bug 125674),
 #- patches from Joerge Plate for grep being called with too many arguments (bug 114155)
 #- finally updated emerge syntax, brought up by nyhm (with some input from cab) in bug 128130.
 # Version 1.3
@@ -11,304 +14,279 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-# First and foremost - make sure we have a perl to work with...
-PERL=$(which perl)
-if [ "${PERL}x" = "x" ]; then
-   echo "NO PERL INSTALLED!! (at least not in your path)"
-   exit
-fi
-eval $(perl '-V:version')
-PERL_VERSION=${version}
-gPERL_VERSION=`echo $PERL_VERSION|sed -e 's|\.|\\\.|g'`
+PERL_CLEANER_VERSION="1.5_pre1"
+
+SUPPORTED_PMS="portage pkgcore paludis"
+PMS_COMMAND=( "emerge" "pmerge" "paludis" )
+PMS_OPTIONS=( "-vD1" "-Do" "-i1" )
+CUSTOM_PMS_COMMAND=""
+
+PKGS_TO_REMERGE=""
+PKGS_COUNT_REMERGE=0
+
+PKGS_EXCEPTIONS="dev-lang/perl"
+PKGS_MANUAL=""
+
+PKG_DBDIR=/var/db/pkg
+
 . /etc/init.d/functions.sh || {
-        echo "$0: Could not source /init.d/functions.sh!"
-        exit 1
+    echo "$0: Could not source /etc/init.d/functions.sh!"
+    exit 1
 }
 
-TMPDIR=${TMPDIR:-/tmp}
+# First and foremost - make sure we have a perl to work with...
+if ! type -P perl >/dev/null 2>&1 ; then
+    ewarn "NO PERL INSTALLED! (at least not in your path)"
+    exit 1
+fi
 
-PKGDIR=$(/usr/bin/portageq vdb_path)
-DATESTAMP=$(date +"%Y%m%d%H%M%S")
-LOG=$(mktemp ${TMPDIR}/perl-cleaner.log.$DATESTAMP.XXXXXXXXXX)
-PAGER=${PAGER:-more}
-
-# Set up our temporary files
-MODULES_LIST=$(mktemp ${TMPDIR}/modules.list.XXXXXXXXXX)
-EBUILDS_PREINSTALL=$(mktemp ${TMPDIR}/ebuilds.preinstall.XXXXXXXXXX)
-EBUILDS_ORDERED=$(mktemp ${TMPDIR}/ebuilds.ordered.XXXXXXXXXX)
-EBUILDS_REINSTALL=$(mktemp ${TMPDIR}/ebuilds.reinstall.XXXXXXXXXX)
-
-postclean() {
-   for FILE in ${MODULES_LIST} ${EBUILDS_PREINSTALL} ${EBUILDS_ORDERED} ${EBUILDS_REINSTALL}; do
-
-      if [ -f $FILE ]; then
-         rm -f $FILE
-      fi
-
-   done
-
-   if [ -s $LOG ]; then
-      echo
-      echo "For a complete log, please read $LOG"
-      echo
-   else
-      if [ -f $LOG ]; then
-        rm -f $LOG
-      fi
-   fi
+veinfo() {
+    if [[ VERBOSE -ge $1 ]]; then
+        shift
+        einfo $@
+    fi
 }
 
 # This is to clean out the old .ph files generated in our last perl install
 ph_clean() {
-   echo ""
-   echo "$(date) : Beginning a clean up of .ph files" | tee -a $LOG
-   echo "Excluding perl-${PERL_VERSION} from cleaning" | tee -a $LOG
+    local file INC
+    echo
+    einfo "Beginning a clean up of .ph files"
+    einfo "Excluding files for ${version} and ${version}/${archname} from cleaning"
+    echo
 
-   local PV=${version}
-   local gPV=`echo $PV|sed -e 's|\.|\\\.|g'`
-   INC=$(perl -e 'for $line (@INC) { next if $line eq "."; next if $line =~
-   m/'${PV}'/; print "$line\n" }')
-   if [ "${INC}x" != "x" ]; then
-   echo "Locating ph files for removal"
-      for file in $(find $INC -name "*.ph" -type f 2>/dev/null); do
-         if [ ! $(echo "$file"|grep $gPV) ]; then
-            echo ""
-            echo "$(date) : Removing old ph file: $file" | tee -a $LOG
-            rm $file
-         fi
-      done
-   fi
+    INC=$(perl -e 'for $line (@INC) { next if $line eq "."; next if $line =~ m/'${gversion}'(\/'${archname}')?$/; print "$line\n" }' )
+    if [ "${INC}x" != "x" ]; then
+        einfo "Locating ph files for removal"
+        eindent ""
+        veinfo 1 "...in ${INC}"
+        for file in $(find "${INC}" -name "*.ph" -type f 2>/dev/null ); do
+            if [[ ${file} == ${file/${archname}} || ${file} == ${file/${version}} ]] ; then
+                veinfo 1 "${file}"
+                rm "${file}"
+            fi
+        done
+        eoutdent
+    fi
 
-   # Silently remove those dirs that we just emptied
-   find $INC -depth -type d 2>/dev/null | grep -v $gPV | xargs -r rmdir 2>/dev/null
+    # Silently remove those dirs that we just emptied
+    find "${INC}" -depth -type d 2>/dev/null | grep -v "${gversion}" | xargs -r rmdir 2>/dev/null
 }
 
 # Generate ph files; this is useful if we've upgraded packages with headers so that perl knows the new info
 ph_update() {
-   echo ""
-   echo "$(date) : Updating ph files" | tee -a $LOG
-   cd /usr/include; h2ph * | tee -a $LOG
-   cd /usr/include; h2ph -r sys/* arpa/* netinet/* bits/* security/* asm/* gnu/* linux/* gentoo* | tee -a $LOG
-   cd /usr/include/linux; h2ph * | tee -a $LOG
-}
-
-
-# Build a list of modules installed under older perls - only valid if the module was an ebuild :)
-module_list() {
-   echo ""
-   echo "$(date) : Building list of modules for reinstall" | tee -a $LOG
-   echo "Locating modules for reinstall"
-    for checkfile in `find $PKGDIR -maxdepth 3 -mindepth 3 -name "CONTENTS" |xargs grep -El '/usr/lib*/perl5/' `; do 
-	if [ "`grep -l "${gPERL_VERSION}" $checkfile`x" = "x" ]; then
-		 echo "$checkfile" >> ${MODULES_LIST} 
-	fi; 
+    local option dir
+    if [[ VERBOSE -le 1 ]] ; then option="-Q" ; fi
+    echo
+    einfo "Updating ph files"
+    cd /usr/include
+    eindent
+    veinfo 1 "...in /usr/include"
+    h2ph ${option} * 2>/dev/null
+    for dir in sys arpa netinet bits security asm gnu linux ; do
+        einfo "...in /usr/include/$dir/"
+        h2ph ${option} -r $dir/*
     done
+    eoutdent
 }
 
-alternate_module_list() {
-   # Takes longer to run, but identifes modules not associated with
-   # an ebuild.
-   #
-   # Reset INC - INC is dynamically generated, and if we removed any ph 
-   # files - and they were the only thing left in a dir - then there's 
-   # no sense in revisiting that dir
-   echo ""
-   echo "$(date) : Building list of modules for reinstall" | tee -a $LOG
-   INC=$(perl -e 'for $line (@INC) { next if $line eq "."; next if $line =~ m/'${PERL_VERSION}'/; print "$line\n" }')
-   INSTALLED_EBUILDS=$(find $PKGDIR -name CONTENTS)
-   echo "Locating modules for reinstall"
-   for file in $(find $INC -iname "*.pm" \! -type f 2>/dev/null | fgrep -v "${gPERL_VERSION}"| sort -u); do
-      PKG=$(for ebuild in $INSTALLED_EBUILDS; do if fgrep -l $file $ebuild; then break; fi; done)
-      if [ -z "$PKG" ] ; then
-         echo "Warning: $file is not owned by a currently installed ebuild"
-      else
-         echo "$PKG" >>${MODULES_LIST}
-      fi
-   done
-}
+update_packages(){
+    local libperl content exp lib broken_libs
 
+    echo
+    if ${MODULES} ; then
+        einfo "Locating packages for an update"
+    fi
+    if ${LIBPERL} ; then
+        einfo "Locating ebuilds linked against libperl"
+    fi
 
-# The meat of it - rebuilding the ebuilds
-# ALL emerges are oneshots - we don't want to mess with the world file
-# We first attempt to emerge the specific module that was installed last time
-# If that fails, we attempt to install a newer version
+    if ${LIBPERL} ; then
+        if ! type -P scanelf >/dev/null 2>&1; then
+            ewarn "scanelf not found!"
+            ewarn "--libperl is disbled."
+            LIBPERL=false
+        else
+            libperl="$(echo /usr/lib*/libperl.so)"
+            OLD_SONAME="$(readlink -n ${libperl})"
+            veinfo 2 $libperl
+            veinfo 2 $OLD_SONAME
+        fi
+    fi
 
-ebuild_rebuild() {
+    # iterate thru all the installed package's contents
+    for content in $(find ${PKG_DBDIR} -name CONTENTS ) ; do
+        # extract the category, package name and package version
+        CATPKGVER=$(echo ${content} | sed "s:${PKG_DBDIR}/\(.*\)/CONTENTS:\1:")
+        CATPKG="${CATPKGVER%%-[0-9]*}"
+        veinfo 2 "Checking ${CATPKGVER}"
 
-   echo ""
-   echo "$(date) : Rebuilding modules: Building list of ebuilds" | tee -a $LOG
-   if [ -s ${MODULES_LIST} ]; then
-      for line in $(sort -u ${MODULES_LIST}); do
-         echo "$line"|sed -e 's|.*pkg/||' -e 's|/CONTENTS||'|fgrep -v "dev-lang/perl" >>${EBUILDS_PREINSTALL}
-      done
-   fi
-
-   # If they asked for interactive, let them see what will be reinstalled
-   if [ -s ${EBUILDS_PREINSTALL} ]; then
-
-      if [ ! -z $ASK ]; then
-         echo "Press Enter to see the list of ebuilds we'll be evaluating"
-         read key
-         $PAGER ${EBUILDS_PREINSTALL}
-         printf "Continue? (Y/N) "
-         read ANSWER
-         if [ $(echo "${ANSWER}" | grep -i -e "^n|N" ) ]; then
-            echo "$(date) : USER ABORTED REBUILD">>$LOG
-            exit
-         fi
-      fi
-
-      for EBUILD in $(cat ${EBUILDS_PREINSTALL} ); do
-# Use the esync cache if available
-         if [ -x /usr/bin/esearch ]; then
-            EBUILD=`echo $EBUILD | sed -e 's/-[0-9].*//'`
-            INFO=$(/usr/bin/esearch --fullname --instonly --own='%p:%vi:%va:%m' $EBUILD)
-            #FULLNAME=`echo $INFO | cut -d':' -f1`
-            INSTALLED=`echo $INFO | cut -d':' -f2`
-            AVAILABLE=`echo $INFO | cut -d':' -f3`
-            MASKED=`echo $INFO | cut -d':' -f4`
-            if [ ! -z "$MASKED" ]; then
-               echo ""
-               echo "$(date) : There are no unmasked ebuilds to satisfy $EBUILD. Skipping" | tee -a $LOG
-               sleep 2
-            else
-               if [ "$INSTALLED" != "$AVAILABLE" -a -n "$ASK" ]; then
-                  printf "${EBUILD}-${INSTALLED} is not the latest available. Use version ${AVAILABLE}? (Y/n) "
-                  read ANSWER
-                  if [ $(echo "${ANSWER}" | grep -i "^n" ) ]; then
-                     # re-install the current version
-                     echo "=${EBUILD}-${INSTALLED}" >> ${EBUILDS_ORDERED}
-                  else
-                     # we want the latest available
-                     echo "$EBUILD" >> ${EBUILDS_ORDERED}
-                     echo "$(date) : User chose to install ${EBUILD}-${AVAILABLE}" >> $LOG
-                  fi
-               else
-                  # assume we want the latest available
-                  echo "$EBUILD" >> ${EBUILDS_ORDERED}
-               fi
+        # exclude packages that are an exception
+        exception=0
+        for exp in ${PKGS_EXCEPTIONS}; do
+            if [[ -z "${CATPKG##${exp}}" ]]; then
+                veinfo 2 "Skipping ${CATPKG}, reason: exception"
+                exception=1
+                break
             fi
-         else
-# No cache available - use the old method
-         if emerge --oneshot -p "=$EBUILD"|egrep -q ".*ebuilds.*satisfy"; then
-            if emerge --oneshot -p ">=$EBUILD"|egrep -q ".*ebuilds.*satisfy"; then
-               echo "$(date) : There are no unmasked ebuilds to satisfy $EBUILD. Skipping" | tee -a $LOG
-               sleep 2
-            else
-               if [ ! -z $ASK ]; then
-                  printf "${EBUILD} isn't available, but a new version is. Install? (Y/N) "
-                  read ANSWER
-                  if [ $(echo "${ANSWER}" | egrep -e "^y|Y" ) ]; then
-                     echo ">=$EBUILD" >> ${EBUILDS_ORDERED}
-                     echo "$(date) : User chose to install >=${EBUILD}">>$LOG
-                  fi
-               else
-                  echo ">=$EBUILD" >>${EBUILDS_ORDERED}
-               fi
+        done
+
+        [[ ${exception} == 1 ]] && continue
+
+#        # Check if package is in PKGS_MANUAL
+#        if [[ CHECK_MANUAL -ne 0 ]]; then
+#            for pkg in ${PKGS_MANUAL}; do
+#                if [ -z "${CATPKG##${pkg}}" ]; then
+#                    exception=2
+#                    break;
+#                fi
+#            done
+#        fi
+        # replace version number by SLOT if IGNORE_VERSIONS != 0
+        # Don't ignore versions when SLOT doesn't exist, bug 201848
+        if [[ IGNORE_VERSIONS -ne 0 && -f "${content/CONTENTS/SLOT}" ]]; then
+            SLOT=$(< ${content/CONTENTS/SLOT})
+            CATPKGVER="${CATPKG}:${SLOT}"
+        else
+            CATPKGVER="=${CATPKGVER}"
+        fi
+
+#        if [[ ${exception} = 2 ]]; then
+#            PKGS_TO_REMERGE="${PKGS_TO_REMERGE} ${CATPKGVER}"
+#            eindent
+#            einfo "Adding to list: ${CATPKGVER}"
+#            eindent
+#            einfo "check: manual [Added to list manually, see CHECKS in manpage for more information.]"
+#            eoutdent && eoutdent
+#            continue
+#        fi
+
+        if ${MODULES} ; then
+#            for file in $(grep -E -o -e "/usr/lib(32|64)?/perl5(/[^/]*){2}/[^/]*${osname}[^/]*" \
+#                        -e "/usr/lib(32|64)?/perl5(/[^/]*){2}" ${content} | cut -d' ' -f2 ) ; do
+#                if ${FORCE} || \
+#                    [[ ${file} == ${file/${version}} ]] || \
+#                    [[ "${file#*/${version}}" != "" && ${file} == ${file%%${archname}} ]] ; then
+            for file in $(grep -Ee "^obj /usr/lib(32|64)?/perl5/" ${content} | cut -d' ' -f2 ); do
+                if ${FORCE} || \
+                    [[ ${file} == ${file/${version}} ]] || \
+                    [[ "${file#*/${version}}" != "" && "${file/-${osname}}" != ${file} && ${file} == ${file/${archname}} ]] ; then
+
+                    PKGS_TO_REMERGE="${PKGS_TO_REMERGE} ${CATPKGVER}"
+                    eindent
+                    einfo "Adding to list: ${CATPKGVER}"
+                    eindent
+                    veinfo 2 "check: module ${file}"
+                    eoutdent
+                    eoutdent
+                    break
+                fi
+            done
+        fi
+
+        if ${LIBPERL} ; then
+            broken_libs="$(scanelf -qBN ${OLD_SONAME} < <(grep -e '^obj' ${content} | cut -d' ' -f2))"
+            if [[ -n "${broken_libs}" ]]; then
+                for lib in ${broken_libs} ; do
+                    if [[ ${FORCE} || ${lib} -nt ${libperl} ]] ; then
+                        PKGS_TO_REMERGE="${PKGS_TO_REMERGE} ${CATPKGVER}"
+                        eindent
+                        einfo "Adding to list: ${CATPKGVER}"
+                        eindent
+                        veinfo 2 "check: libperl ${broken_libs}"
+                        eoutdent
+                        eoutdent
+                        break
+                    elif [[ ! ${lib} -nt ${libperl} ]] ; then
+                        eindent
+                        veinfo 2 "No adding: ${CATPKGVER}"
+                        veinfo 2 "because it should be uptodate."
+                        veinfo 2 "check: libperl ${broken_libs}"
+                        eoutdent
+                    fi
+                done
             fi
-         else
-            echo "=$EBUILD">>${EBUILDS_ORDERED}
-         fi
-         fi
-      done
+        fi
+    done
+    # Pipe to command if we have one
+    if [[ -n "${PIPE_COMMAND}" ]] ; then
+        echo "${PKGS_TO_REMERGE}" | ${PIPE_COMMAND}
+        exit $?
+    fi
 
-      if [ -s ${EBUILDS_ORDERED} ]; then
-         if [ ! -z $ASK ]; then
-            echo "Press Enter to see the final list of ebuilds to install"
-            read key
-            $PAGER ${EBUILDS_ORDERED}
-            printf "Continue? (Y/N) "
-            read ANSWER
-            if [ $(echo "${ANSWER}" | egrep -e "^n|N" ) ]; then
-               echo "$(date) : USER ABORTED REBUILD">>$LOG
-               exit
-            fi
-         fi
+    # only pretending?
+    ${PRETEND} && PMS_OPTIONS[${PMS_INDEX}]="${PMS_OPTIONS[${PMS_INDEX}]}p"
 
-         # Cut down to one line so portage can handle ordering these appropriately
-         emerge -pq --oneshot $(cat ${EBUILDS_ORDERED}) | sed -n -e 's/^\[ebuild .*\] \([^ ]*\).*/=\1/p' >>${EBUILDS_REINSTALL}
-
-         echo ""
-         echo "Reinstalling ebuilds"
-         echo "$(date) : Ebuilds to reinstall: ">>$LOG
-         cat ${EBUILDS_REINSTALL}>>$LOG
-         echo >>$LOG
-
-         # Now that we have them in the right order, emerge them one at a time
-         # This is to avoid problems if one doesn't emerge correctly
-
-         for EBUILD in $(cat ${EBUILDS_REINSTALL}); do
-            emerge --oneshot ${EMERGE_OPTIONS} "$EBUILD"
-         done
-      else
-         echo
-         echo "Nothing to reinstall!"
-         echo
-      fi
-   else
-      echo
-      echo "Nothing to reinstall!"
-      echo
-   fi
-
-}
-
-# Locate .so's and binaries linked against libperl.so
-# The coup is in ! -newer libperl.so - cut out anything that was obviously installed
-# after our last install of libperl, which should cut out the false positives.
-
-libperl_list() {
-   echo ""
-   echo "$(date) : Locating ebuilds linked against libperl" | tee -a $LOG
-   for i in $(find $(egrep -v "^#" /etc/ld.so.conf) -type f -name '*.so*' ! -newer /usr/lib/libperl.so 2>/dev/null) \
-            $(find $(echo $PATH | sed 's/:/ /g') -type f -perm +0111 ! -newer /usr/lib/libperl.so 2>/dev/null) ;
-   do
-      if [ -f ${i} ]; then
-         if ldd ${i} 2>&1 | fgrep "libperl" - >/dev/null; then
-            for file in $PKGDIR/*/*/CONTENTS; do
-               fgrep -l " $i " $file
-            done >>${MODULES_LIST};
-         fi   
-      fi
-   done 
-
+    # (Pretend to) remerge packages
+    if [[ -n "${PKGS_TO_REMERGE}" ]] ; then
+        pmscmd="${CUSTOM_PMS_COMMAND}"
+        [[ -z "${pmscmd}" ]] && pmscmd="${PMS_COMMAND[${PMS_INDEX}]}"
+        cmd="${pmscmd} ${PMS_OPTIONS[${PMS_INDEX}]} ${PKGS_TO_REMERGE}"
+        einfo ${cmd}
+        ${cmd}
+    else
+        einfo "No packages needs to be remerged."
+    fi
 }
 
 # Assuming a successful module run, look to see whats left over
 leftovers() {
-   echo ""
-   echo "$(date) : Finding left over modules" | tee -a $LOG
+    local inc path INC
+    echo
+    einfo "Finding left over modules"
+    echo
+    einfo "The following files remain. These were either installed by hand"
+    einfo "or edited. This script cannot deal with them."
+    echo
 
-   echo ""
-   echo "$(date) : The following files remain. These were either installed by hand" | tee -a $LOG
-   echo "$(date) : or edited. This script cannot deal with them." | tee -a $LOG
-   echo | tee -a $LOG
+    INC=$(perl -e 'for $line (@INC) { next if $line =~ m/\.$|'${version}'(\/'${archname}')?$/; print "$line\n" }')
+    veinfo 2 $INC
 
-
-   INC=$(perl -e 'for $line (@INC) { next if $line eq "."; next if $line =~ m/'${PERL_VERSION}'/; print "$line\n" }')
-   for file in $(find $INC -type f 2>/dev/null |fgrep -v  "${gPERL_VERSION}" ) ; do
-      echo "$(date) : ${file}" | tee -a $LOG
-   done
+    eval $(perl -V:osname)
+    for inc in ${INC} ; do
+        for path in $(find $inc -mindepth 2 -maxdepth 2 -type d  2>/dev/null ) ; do
+            if [[ ${path} == ${path/${version}} ]] || \
+                [[ "${path#*/${version}}" != ""  && "${path/-${osname}}" != ${path} && ${path} == ${path%%${archname}} ]] ; then
+                find $path -type f
+            fi
+        done
+    done
 }
 
 usage() {
-   echo "Usage: $0 [options] [ask]"
-   printf "\tmodules - rebuild perl modules for old installs of perl\n"
-   printf "\tallmodules - rebuild perl modules for any install of perl\n"
-   printf "\tlibperl - rebuild anything linked against libperl\n"
-   printf "\tph-clean - clean out old ph files from a previous perl\n"
-   printf "\tphupdate - update existing ph files, useful after an upgrade to system parts like the kernel\n"
-   printf "\tphall - clean out old ph files and run phupdate\n"
-   printf "\tall - rebuild modules, libperl linkages, clean ph files, and rebuild them\n"
-   printf "\treallyall - rebuild modules for any install of perl, libperl linkages, clean ph files, and rebuild them\n"
-   printf "\n"
-   printf "\task - ask for confirmation on each emerge"
-   printf "\n\n"
-   exit 0
+    cat << EOF_USAGE
+Usage: $0 [OPTION]
+
+Options:
+  -h, --help     Print usage
+  -V, --version  Print version
+  -p, --pretend  Pretend (don't do anything)
+  -v, --verbose  Increase verbosity (may be specified multiple times)
+  --modules      Rebuild perl modules for old installs of perl
+  --allmodules   Rebuild perl modules for any install of perl
+  --libperl      Rebuild anything linked against libperl
+  --ph-clean     Clean out old ph files from a previous perl
+  --phupdate     Update existing ph files, useful after an upgrade to system parts like the kernel
+  --all          Short for --modules --libperl --phupdate
+  --reallyall    Short for --allmodules --libperl --phupdate
+  --ask          Ask for confirmation on each install
+  --leftovers    Show all modules that were not rebuild
+  -P PM, --package-manager PM
+                 Use package manager PM, where PM can be one of:
+$(for p in ${SUPPORTED_PMS} ; do
+echo -ne $'\t\t  '\* ${p}
+if [[ ${p} == portage ]]; then
+    echo ' (Default)'
+else
+    echo
+fi
+done)
+EOF_USAGE
+exit 0
 }
 
 if [ -z "$1" ]; then
-   usage
+    usage
 fi
 
 EMERGE_OPTIONS=""
@@ -319,83 +297,114 @@ PHCLEAN=false
 PHUPDATE=false
 FORCE=false
 LEFTOVERS=false
-while [ ! -z "$1" ] ; do
-   case "$1" in
-      help | --help | -h )
-         usage
-         ;;
-      leftovers )
-         LEFTOVERS=true
-         shift
-         ;;
-      modules )
-         MODULES=true
-#         LEFTOVERS=true
-         shift
-         ;;
-      allmodules )
-         MODULES=true
-         FORCE=true
-         shift
-         ;;
-      libperl )
-         LIBPERL=true
-         shift
-         ;;
-      ph-clean )
-         PHCLEAN=true
-         shift
-         ;;
-      phupdate )
-         PHUPDATE=true
-         shift
-         ;;
-      phall )
-         PHCLEAN=true
-         PHUPDATE=true
-         shift
-         ;;
-      all )
-         MODULES=true
-         LIBPERL=true
-         PHCLEAN=true
-         PHUPDATE=true
-         LEFTOVERS=true
-         shift
-         ;;
-      reallyall )
-         MODULES=true
-         LIBPERL=true
-         PHCLEAN=true
-         PHUPDATE=true
-         FORCE=true
-	shift
-         ;;
-      ask )
-         ASK="true"
-         EMERGE_OPTIONS="${EMERGE_OPTIONS} --ask"
-         shift
-         ;;
-      force )
-         FORCE=true
-         shift
-         ;;
-      * )
-         EMERGE_OPTIONS="${EMERGE_OPTIONS} $1"
-         shift
-         ;;
-   esac
+VERBOSE=0
+
+# version=
+eval $(perl '-V:version')
+veinfo 2 "Installed perl version: ${version}"
+# archname=
+eval $(perl '-V:archname')
+veinfo 2 "Installed perl archname: ${archname}"
+#osname
+eval $(perl '-V:osname')
+veinfo 2 "Installed perl osname: ${osname}"
+gversion=${version//./\\\.}
+
+while [[ -n "$1" ]] ; do
+    case "$1" in
+        help|--help|-h)
+            usage
+            ;;
+        version|--version|-V)
+            echo "${PERL_CLEANER_VERSION}"
+            exit 0
+            ;;
+        -p|--pretend|--dry-run)
+            PRETEND=true
+            ;;
+        -v|--verbose)
+            VERBOSE=$(( ${VERBOSE} + 1 ))
+            ;;
+        -P|--package-manager)
+            shift
+            PACKAGE_MANAGER="$1"
+            case "${PACKAGE_MANAGER}" in
+                portage|pkgcore|paludis)
+                    ;;
+                *)
+                    echo "unrecognised package manager selected. please select between ${SUPPORTED_PMS}"
+                    exit
+                    ;;
+            esac
+
+            # PMS_INDEX is used to select the right commands and options for the selected package manager
+            PMS_INDEX=0
+            for PM in ${SUPPORTED_PMS} ; do
+                [[ ${PM} == ${PACKAGE_MANAGER} ]] && break
+                PMS_INDEX=$((${PMS_INDEX} + 1))
+            done
+            ;;
+        --package-manager-command)
+            shift
+            CUSTOM_PMS_COMMAND="$1"
+            ;;
+
+        --leftovers|leftovers)
+            LEFTOVERS=true
+            ;;
+        --modules|modules)
+            MODULES=true
+#           LEFTOVERS=true
+            ;;
+        --allmodules|allmodules)
+            MODULES=true
+            FORCE=true
+            ;;
+        --libperl|libperl)
+            LIBPERL=true
+            ;;
+        --ph-clean|ph-clean)
+            PHCLEAN=true
+            ;;
+        --phupdate|phupdate)
+            PHUPDATE=true
+            ;;
+        --phall|phall)
+            PHCLEAN=true
+            PHUPDATE=true
+            ;;
+        --all|all)
+            MODULES=true
+            LIBPERL=true
+            PHCLEAN=true
+            PHUPDATE=true
+            LEFTOVERS=true
+            ;;
+        --reallyall|reallyall)
+            MODULES=true
+            LIBPERL=true
+            PHCLEAN=true
+            PHUPDATE=true
+            FORCE=true
+            ;;
+        --ask|ask)
+            ASK="true"
+            EMERGE_OPTIONS="${EMERGE_OPTIONS} --ask"
+            ;;
+        --force|force)
+            FORCE=true
+            ;;
+        *)
+            EMERGE_OPTIONS="${EMERGE_OPTIONS} $1"
+            ;;
+    esac
+    shift
 done
 
-$FORCE && PERL_VERSION="0.0.0" && gPERL_VERSION="0\.0\.0"
-$PHCLEAN && ph_clean
-$PHUPDATE && ph_update
-$MODULES && module_list
-$LIBPERL && libperl_list
-($MODULES || $LIBPERL) && ebuild_rebuild
-$LEFTOVERS && leftovers
+${FORCE} && version="0.0.0" && gversion="0\.0\.0"
+${PHCLEAN} && ph_clean
+${PHUPDATE} && ph_update
+(${MODULES} || ${LIBPERL}) && update_packages
+${LEFTOVERS} && leftovers
 
-#postclean
-
-exit
-# vim:ts=3:sw=3:et
+exit 0
