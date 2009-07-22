@@ -47,6 +47,29 @@ veinfo() {
     fi
 }
 
+outdated_path(){
+    local path="$1"
+
+    eindent && eindent
+    veinfo 3 "Check: ${path}"
+
+    if [[ ${path} == ${path/${version}} ]] ; then
+        eindent
+        veinfo 3 "Found different version"
+        eoutdent
+        eoutdent && eoutdent
+        return 0
+    elif [[ "${path/${version}\/*-${osname}}" != ${path} && ${path} == ${path/${archname}\/} ]] ; then
+        eindent
+        veinfo 3 "Found different archname"
+        eoutdent
+        eoutdent && eoutdent
+        return 0
+    fi
+    eoutdent && eoutdent
+    return 1
+}
+
 # This is to clean out the old .ph files generated in our last perl install
 ph_clean() {
     local file INC
@@ -59,11 +82,11 @@ ph_clean() {
     if [ "${INC}x" != "x" ]; then
         einfo "Locating ph files for removal"
         eindent ""
-        veinfo 1 "...in ${INC}"
-        for file in $(find "${INC}" -name "*.ph" -type f 2>/dev/null ); do
-            if [[ ${file} == ${file/${archname}} || ${file} == ${file/${version}} ]] ; then
-                veinfo 1 "${file}"
-                rm "${file}"
+        veinfo 3 "...in ${INC}"
+        for file in $(find ${INC} -name "*.ph" -type f 2>/dev/null ); do
+             if outdated_path "${file}" ; then
+                veinfo 1 "Removing: ${file}"
+                ${PRETEND} || rm "${file}"
             fi
         done
         eoutdent
@@ -79,12 +102,16 @@ ph_update() {
     if [[ VERBOSE -le 1 ]] ; then option="-Q" ; fi
     echo
     einfo "Updating ph files"
+    if ! ${PRETEND} ; then
+        einfo "Pretend. Done."
+        return
+    fi
     cd /usr/include
     eindent
     veinfo 1 "...in /usr/include"
     h2ph ${option} * 2>/dev/null
     for dir in sys arpa netinet bits security asm gnu linux ; do
-        einfo "...in /usr/include/$dir/"
+        veinfo 1 "...in /usr/include/$dir/"
         h2ph ${option} -r $dir/*
     done
     eoutdent
@@ -162,21 +189,13 @@ update_packages(){
 #        fi
 
         if ${MODULES} ; then
-#            for file in $(grep -E -o -e "/usr/lib(32|64)?/perl5(/[^/]*){2}/[^/]*${osname}[^/]*" \
-#                        -e "/usr/lib(32|64)?/perl5(/[^/]*){2}" ${content} | cut -d' ' -f2 ) ; do
-#                if ${FORCE} || \
-#                    [[ ${file} == ${file/${version}} ]] || \
-#                    [[ "${file#*/${version}}" != "" && ${file} == ${file%%${archname}} ]] ; then
             for file in $(grep -Ee "^obj /usr/lib(32|64)?/perl5/" ${content} | cut -d' ' -f2 ); do
-                if ${FORCE} || \
-                    [[ ${file} == ${file/${version}} ]] || \
-                    [[ "${file#*/${version}}" != "" && "${file/-${osname}}" != ${file} && ${file} == ${file/${archname}} ]] ; then
-
+                if ${FORCE} || outdated_path "${file}" ; then
                     PKGS_TO_REMERGE="${PKGS_TO_REMERGE} ${CATPKGVER}"
                     eindent
                     einfo "Adding to list: ${CATPKGVER}"
                     eindent
-                    veinfo 2 "check: module ${file}"
+                    veinfo 1 "check: module ${file}"
                     eoutdent
                     eoutdent
                     break
@@ -233,21 +252,18 @@ update_packages(){
 leftovers() {
     local inc path INC
     echo
-    einfo "Finding left over modules"
+    einfo "Finding left over modules and header"
     echo
     einfo "The following files remain. These were either installed by hand"
     einfo "or edited. This script cannot deal with them."
     echo
 
     INC=$(perl -e 'for $line (@INC) { next if $line =~ m/\.$|'${version}'(\/'${archname}')?$/; print "$line\n" }')
-    veinfo 2 $INC
 
-    eval $(perl -V:osname)
     for inc in ${INC} ; do
         for path in $(find $inc -mindepth 2 -maxdepth 2 -type d  2>/dev/null ) ; do
-            if [[ ${path} == ${path/${version}} ]] || \
-                [[ "${path#*/${version}}" != ""  && "${path/-${osname}}" != ${path} && ${path} == ${path%%${archname}} ]] ; then
-                find $path -type f
+             if outdated_path "${path}" ; then
+                find ${path} -type f
             fi
         done
     done
