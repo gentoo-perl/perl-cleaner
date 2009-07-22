@@ -102,8 +102,8 @@ ph_update() {
     if [[ VERBOSE -le 1 ]] ; then option="-Q" ; fi
     echo
     einfo "Updating ph files"
-    if ! ${PRETEND} ; then
-        einfo "Pretend. Done."
+    if ${PRETEND} ; then
+        einfo "Pretend. Nothing to do."
         return
     fi
     cd /usr/include
