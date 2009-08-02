@@ -262,7 +262,7 @@ leftovers() {
 
     for inc in ${INC} ; do
         for path in $(find $inc -mindepth 2 -maxdepth 2 -type d  2>/dev/null ) ; do
-             if outdated_path "${path}" ; then
+             if outdated_path "${path}/" ; then
                 find ${path} -type f
             fi
         done
