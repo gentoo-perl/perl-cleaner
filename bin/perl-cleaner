@@ -134,10 +134,11 @@ update_packages(){
             ewarn "--libperl is disbled."
             LIBPERL=false
         else
-            libperl="$(echo /usr/lib*/libperl.so)"
+            #libperl="$(echo /usr/lib/libperl.so)"
+            libperl="/usr/lib/libperl.so"
             OLD_SONAME="$(readlink -n ${libperl})"
-            veinfo 2 $libperl
-            veinfo 2 $OLD_SONAME
+            veinfo 3 $libperl
+            veinfo 3 $OLD_SONAME
         fi
     fi
 
@@ -204,22 +205,21 @@ update_packages(){
         fi
 
         if ${LIBPERL} ; then
-            broken_libs="$(scanelf -qBN ${OLD_SONAME} < <(grep -e '^obj' ${content} | cut -d' ' -f2))"
+            broken_libs="$(scanelf -qBN ${OLD_SONAME} < <(awk '/^obj/{ print $2 }' ${content} ) | awk '{ print $2 }')"
             if [[ -n "${broken_libs}" ]]; then
                 for lib in ${broken_libs} ; do
-                    if [[ ${FORCE} || ${lib} -nt ${libperl} ]] ; then
+                    if ${FORCE} || [[ ${libperl} -nt ${lib} ]] ; then
                         PKGS_TO_REMERGE="${PKGS_TO_REMERGE} ${CATPKGVER}"
                         eindent
                         einfo "Adding to list: ${CATPKGVER}"
                         eindent
-                        veinfo 2 "check: libperl ${broken_libs}"
+                        veinfo 1 "check: libperl ${broken_libs}"
                         eoutdent
                         eoutdent
                         break
-                    elif [[ ! ${lib} -nt ${libperl} ]] ; then
+                    elif [[ ${lib} -nt ${libperl} ]] ; then
                         eindent
-                        veinfo 2 "No adding: ${CATPKGVER}"
-                        veinfo 2 "because it should be uptodate."
+                        veinfo 2 "Not adding: ${CATPKGVER} because it should be uptodate."
                         veinfo 2 "check: libperl ${broken_libs}"
                         eoutdent
                     fi
@@ -313,6 +313,7 @@ PHCLEAN=false
 PHUPDATE=false
 FORCE=false
 LEFTOVERS=false
+PRETEND=false
 VERBOSE=0
 
 # version=
