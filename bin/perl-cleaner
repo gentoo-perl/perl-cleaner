@@ -266,7 +266,7 @@ leftovers() {
                 find ${path} -type f
             fi
         done
-    done
+    done | sort -u
 }
 
 usage() {
