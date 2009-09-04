@@ -1,6 +1,6 @@
 #!/bin/bash
 # vim: set et sw=4 sts=4 tw=80:
-# Copyright 2005-2008 Gentoo Foundation
+# Copyright 2005-2009 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
 # Version 1.4
@@ -41,9 +41,9 @@ if ! type -P perl >/dev/null 2>&1 ; then
 fi
 
 veinfo() {
-    if [[ VERBOSE -ge $1 ]]; then
+    if [[ VERBOSE -ge $1 ]] ; then
         shift
-        einfo $@
+        einfo "$@"
     fi
 }
 
@@ -59,7 +59,7 @@ outdated_path(){
         eoutdent
         eoutdent && eoutdent
         return 0
-    elif [[ "${path/${version}\/*-${osname}}" != ${path} && ${path} == ${path/${archname}\/} ]] ; then
+    elif [[ "${path/${version}\/${archname%%-*}-${osname}}" != ${path} && ${path} == ${path/${archname}\/} ]] ; then
         eindent
         veinfo 3 "Found different archname"
         eoutdent
@@ -99,7 +99,7 @@ ph_clean() {
 # Generate ph files; this is useful if we've upgraded packages with headers so that perl knows the new info
 ph_update() {
     local option dir
-    if [[ VERBOSE -le 1 ]] ; then option="-Q" ; fi
+    [[ VERBOSE -le 1 ]] && option="-Q"
     echo
     einfo "Updating ph files"
     if ${PRETEND} ; then
@@ -134,24 +134,24 @@ update_packages(){
             ewarn "--libperl is disbled."
             LIBPERL=false
         else
-            #libperl="$(echo /usr/lib/libperl.so)"
+            #libperl="$(echo /usr/lib/libperl.so )"
             libperl="/usr/lib/libperl.so"
-            OLD_SONAME="$(readlink -n ${libperl})"
-            veinfo 3 $libperl
-            veinfo 3 $OLD_SONAME
+            OLD_SONAME="$(readlink -n ${libperl} )"
+            veinfo 3 ${libperl}
+            veinfo 3 ${OLD_SONAME}
         fi
     fi
 
     # iterate thru all the installed package's contents
     for content in $(find ${PKG_DBDIR} -name CONTENTS ) ; do
         # extract the category, package name and package version
-        CATPKGVER=$(echo ${content} | sed "s:${PKG_DBDIR}/\(.*\)/CONTENTS:\1:")
+        CATPKGVER=$(echo ${content} | sed "s:${PKG_DBDIR}/\(.*\)/CONTENTS:\1:" )
         CATPKG="${CATPKGVER%%-[0-9]*}"
         veinfo 2 "Checking ${CATPKGVER}"
 
         # exclude packages that are an exception
         exception=0
-        for exp in ${PKGS_EXCEPTIONS}; do
+        for exp in ${PKGS_EXCEPTIONS} ; do
             if [[ -z "${CATPKG##${exp}}" ]]; then
                 veinfo 2 "Skipping ${CATPKG}, reason: exception"
                 exception=1
@@ -162,24 +162,24 @@ update_packages(){
         [[ ${exception} == 1 ]] && continue
 
 #        # Check if package is in PKGS_MANUAL
-#        if [[ CHECK_MANUAL -ne 0 ]]; then
-#            for pkg in ${PKGS_MANUAL}; do
-#                if [ -z "${CATPKG##${pkg}}" ]; then
+#        if [[ CHECK_MANUAL -ne 0 ]] ; then
+#            for pkg in ${PKGS_MANUAL} ; do
+#                if [ -z "${CATPKG##${pkg}}" ] ; then
 #                    exception=2
 #                    break;
 #                fi
 #            done
 #        fi
-        # replace version number by SLOT if IGNORE_VERSIONS != 0
-        # Don't ignore versions when SLOT doesn't exist, bug 201848
-        if [[ IGNORE_VERSIONS -ne 0 && -f "${content/CONTENTS/SLOT}" ]]; then
-            SLOT=$(< ${content/CONTENTS/SLOT})
-            CATPKGVER="${CATPKG}:${SLOT}"
+        # Replace SLOT by version number when REINSTALL_IDENTICAL_VERSIONS == 1
+        # Reinstall identical versions when SLOT doesn't exist, bug #201848
+        if [[ REINSTALL_IDENTICAL_VERSIONS -eq 1 || ! -f "${content/CONTENTS/SLOT}" ]] ; then
+                CATPKGVER="=${CATPKGVER}"
         else
-            CATPKGVER="=${CATPKGVER}"
+                SLOT=$(< ${content/CONTENTS/SLOT})
+                CATPKGVER="${CATPKG}:${SLOT}"
         fi
 
-#        if [[ ${exception} = 2 ]]; then
+#        if [[ ${exception} = 2 ]] ; then
 #            PKGS_TO_REMERGE="${PKGS_TO_REMERGE} ${CATPKGVER}"
 #            eindent
 #            einfo "Adding to list: ${CATPKGVER}"
@@ -190,7 +190,7 @@ update_packages(){
 #        fi
 
         if ${MODULES} ; then
-            for file in $(grep -Ee "^obj /usr/lib(32|64)?/perl5/" ${content} | cut -d' ' -f2 ); do
+            for file in $(grep -Ee "^obj /usr/lib(32|64)?/perl5/" ${content} | cut -d' ' -f2 ) ; do
                 if ${FORCE} || outdated_path "${file}" ; then
                     PKGS_TO_REMERGE="${PKGS_TO_REMERGE} ${CATPKGVER}"
                     eindent
@@ -206,7 +206,7 @@ update_packages(){
 
         if ${LIBPERL} ; then
             broken_libs="$(scanelf -qBN ${OLD_SONAME} < <(awk '/^obj/{ print $2 }' ${content} ) | awk '{ print $2 }')"
-            if [[ -n "${broken_libs}" ]]; then
+            if [[ -n "${broken_libs}" ]] ; then
                 for lib in ${broken_libs} ; do
                     if ${FORCE} || [[ ${libperl} -nt ${lib} ]] ; then
                         PKGS_TO_REMERGE="${PKGS_TO_REMERGE} ${CATPKGVER}"
@@ -240,7 +240,7 @@ update_packages(){
     if [[ -n "${PKGS_TO_REMERGE}" ]] ; then
         pmscmd="${CUSTOM_PMS_COMMAND}"
         [[ -z "${pmscmd}" ]] && pmscmd="${PMS_COMMAND[${PMS_INDEX}]}"
-        cmd="${pmscmd} ${PMS_OPTIONS[${PMS_INDEX}]} ${PKGS_TO_REMERGE}"
+        cmd="${pmscmd} ${PMS_OPTIONS[${PMS_INDEX}]} ${ADDITIONAL_OPTIONS} ${PKGS_TO_REMERGE}"
         einfo ${cmd}
         ${cmd}
     else
@@ -291,21 +291,22 @@ Options:
                  Use package manager PM, where PM can be one of:
 $(for p in ${SUPPORTED_PMS} ; do
 echo -ne $'\t\t  '\* ${p}
-if [[ ${p} == portage ]]; then
+if [[ ${p} == portage ]] ; then
     echo ' (Default)'
 else
     echo
 fi
-done)
+done )
 EOF_USAGE
 exit 0
 }
 
-if [ -z "$1" ]; then
+if [[ -z "$1" ]] ; then
     usage
 fi
 
-EMERGE_OPTIONS=""
+ADDITIONAL_OPTIONS=""
+REINSTALL_IDENTICAL_VERSIONS=0
 ASK=""
 MODULES=false
 LIBPERL=false
@@ -317,13 +318,13 @@ PRETEND=false
 VERBOSE=0
 
 # version=
-eval $(perl '-V:version')
+eval $(perl '-V:version' )
 veinfo 2 "Installed perl version: ${version}"
 # archname=
-eval $(perl '-V:archname')
+eval $(perl '-V:archname' )
 veinfo 2 "Installed perl archname: ${archname}"
 #osname
-eval $(perl '-V:osname')
+eval $(perl '-V:osname' )
 veinfo 2 "Installed perl osname: ${osname}"
 gversion=${version//./\\\.}
 
@@ -365,7 +366,9 @@ while [[ -n "$1" ]] ; do
             shift
             CUSTOM_PMS_COMMAND="$1"
             ;;
-
+        --reinstall-identical-versions)
+            REINSTALL_IDENTICAL_VERSIONS=1
+            ;;
         --leftovers|leftovers)
             LEFTOVERS=true
             ;;
@@ -406,13 +409,20 @@ while [[ -n "$1" ]] ; do
             ;;
         --ask|ask)
             ASK="true"
-            EMERGE_OPTIONS="${EMERGE_OPTIONS} --ask"
+            ADDITIONAL_OPTIONS="${ADDITIONAL_OPTIONS} --ask"
             ;;
         --force|force)
             FORCE=true
             ;;
+        --)
+            shift
+            ADDITIONAL_OPTIONS="${ADDITIONAL_OPTIONS} $*"
+            break
+            ;;
         *)
-            EMERGE_OPTIONS="${EMERGE_OPTIONS} $1"
+            usage
+            echo "unrecognised option: $1"
+            exit 0
             ;;
     esac
     shift
