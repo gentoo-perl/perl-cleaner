@@ -208,7 +208,7 @@ update_packages(){
         [[ ${exception} == 3 ]] && continue
 
         if ${LIBPERL} ; then
-            broken_libs="$(scanelf -qBn < <(awk '/^obj [^ ]*(\/s?bin|\.so)/{ print $2 }' ${content} ) | grep -o 'libperl\.so\.[0-9.]*' )"
+            broken_libs="$(scanelf -qBn < <(awk '/^obj [^ ]*\/(s?bin|lib)/{ print $2 }' ${content} ) | grep -o 'libperl\.so\.[0-9.]*' )"
             if [[ -n "${broken_libs}" ]] ; then
                 if ${FORCE} || [[ ${broken_libs} != ${SONAME} ]] ; then
                     PKGS_TO_REMERGE="${PKGS_TO_REMERGE} ${CATPKGVER}"
