@@ -79,7 +79,7 @@ ph_clean() {
     echo
 
     INC=$(perl -e 'for $line (@INC) { next if $line eq "."; next if $line =~ m/'${gversion}'(\/'${archname}')?$/; print "$line\n" }' )
-    if [ "${INC}x" != "x" ]; then
+    if [[ -n "${INC}" ]]; then
         einfo "Locating ph files for removal"
         eindent ""
         veinfo 3 "...in ${INC}"
@@ -130,15 +130,15 @@ update_packages(){
 
     if ${LIBPERL} ; then
         if ! type -P scanelf >/dev/null 2>&1; then
-            ewarn "scanelf not found!"
+            ewarn "scanelf not found! Install app-misc/pax-utils."
             ewarn "--libperl is disbled."
             LIBPERL=false
         else
             #libperl="$(echo /usr/lib/libperl.so )"
             libperl="/usr/lib/libperl.so"
-            OLD_SONAME="$(readlink -n ${libperl} )"
-            veinfo 3 ${libperl}
-            veinfo 3 ${OLD_SONAME}
+            SONAME="$(scanelf -qBS $(readlink -f ${libperl} ) | awk '{ print $1 }')"
+            veinfo 3 libperl="${libperl}"
+            veinfo 3 SONAME="${SONAME}"
         fi
     fi
 
@@ -172,7 +172,7 @@ update_packages(){
 #        fi
         # Replace SLOT by version number when REINSTALL_IDENTICAL_VERSIONS == 1
         # Reinstall identical versions when SLOT doesn't exist, bug #201848
-        if [[ REINSTALL_IDENTICAL_VERSIONS -eq 1 || ! -f "${content/CONTENTS/SLOT}" ]] ; then
+        if ${REINSTALL_IDENTICAL_VERSIONS} || [[ ! -f "${content/CONTENTS/SLOT}" ]] ; then
                 CATPKGVER="=${CATPKGVER}"
         else
                 SLOT=$(< ${content/CONTENTS/SLOT})
@@ -193,6 +193,7 @@ update_packages(){
             for file in $(grep -Ee "^obj /usr/lib(32|64)?/perl5/" ${content} | cut -d' ' -f2 ) ; do
                 if ${FORCE} || outdated_path "${file}" ; then
                     PKGS_TO_REMERGE="${PKGS_TO_REMERGE} ${CATPKGVER}"
+                    exception=3
                     eindent
                     einfo "Adding to list: ${CATPKGVER}"
                     eindent
@@ -204,26 +205,25 @@ update_packages(){
             done
         fi
 
+        [[ ${exception} == 3 ]] && continue
+
         if ${LIBPERL} ; then
-            broken_libs="$(scanelf -qBN ${OLD_SONAME} < <(awk '/^obj/{ print $2 }' ${content} ) | awk '{ print $2 }')"
+            broken_libs="$(scanelf -qBn < <(awk '/^obj/{ print $2 }' ${content} ) | grep -o 'libperl\.so\.[0-9.]*' )"
             if [[ -n "${broken_libs}" ]] ; then
-                for lib in ${broken_libs} ; do
-                    if ${FORCE} || [[ ${libperl} -nt ${lib} ]] ; then
-                        PKGS_TO_REMERGE="${PKGS_TO_REMERGE} ${CATPKGVER}"
-                        eindent
-                        einfo "Adding to list: ${CATPKGVER}"
-                        eindent
-                        veinfo 1 "check: libperl ${broken_libs}"
-                        eoutdent
-                        eoutdent
-                        break
-                    elif [[ ${lib} -nt ${libperl} ]] ; then
-                        eindent
-                        veinfo 2 "Not adding: ${CATPKGVER} because it should be uptodate."
-                        veinfo 2 "check: libperl ${broken_libs}"
-                        eoutdent
-                    fi
-                done
+                if ${FORCE} || [[ ${broken_libs} != ${SONAME} ]] ; then
+                    PKGS_TO_REMERGE="${PKGS_TO_REMERGE} ${CATPKGVER}"
+                    eindent
+                    einfo "Adding to list: ${CATPKGVER}"
+                    eindent
+                    veinfo 1 "check: libperl ${broken_libs}"
+                    eoutdent
+                    eoutdent
+                else
+                    eindent
+                    veinfo 2 "Not adding: ${CATPKGVER} because it should be uptodate."
+                    veinfo 2 "check: libperl ${broken_libs}"
+                    eoutdent
+                fi
             fi
         fi
     done
@@ -285,7 +285,6 @@ Options:
   --phupdate     Update existing ph files, useful after an upgrade to system parts like the kernel
   --all          Short for --modules --libperl --phupdate
   --reallyall    Short for --allmodules --libperl --phupdate
-  --ask          Ask for confirmation on each install
   --leftovers    Show all modules that were not rebuild
   -P PM, --package-manager PM
                  Use package manager PM, where PM can be one of:
@@ -297,6 +296,7 @@ else
     echo
 fi
 done )
+  -- OPTIONS     Pass additional options to package manager
 EOF_USAGE
 exit 0
 }
@@ -306,8 +306,8 @@ if [[ -z "$1" ]] ; then
 fi
 
 ADDITIONAL_OPTIONS=""
-REINSTALL_IDENTICAL_VERSIONS=0
-ASK=""
+REINSTALL_IDENTICAL_VERSIONS=false
+ASK=false
 MODULES=false
 LIBPERL=false
 PHCLEAN=false
@@ -323,7 +323,7 @@ veinfo 2 "Installed perl version: ${version}"
 # archname=
 eval $(perl '-V:archname' )
 veinfo 2 "Installed perl archname: ${archname}"
-#osname
+# osname=
 eval $(perl '-V:osname' )
 veinfo 2 "Installed perl osname: ${osname}"
 gversion=${version//./\\\.}
@@ -367,7 +367,7 @@ while [[ -n "$1" ]] ; do
             CUSTOM_PMS_COMMAND="$1"
             ;;
         --reinstall-identical-versions)
-            REINSTALL_IDENTICAL_VERSIONS=1
+            REINSTALL_IDENTICAL_VERSIONS=true
             ;;
         --leftovers|leftovers)
             LEFTOVERS=true
@@ -406,10 +406,6 @@ while [[ -n "$1" ]] ; do
             PHCLEAN=true
             PHUPDATE=true
             FORCE=true
-            ;;
-        --ask|ask)
-            ASK="true"
-            ADDITIONAL_OPTIONS="${ADDITIONAL_OPTIONS} --ask"
             ;;
         --force|force)
             FORCE=true
