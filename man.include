@@ -1,0 +1,27 @@
+[COPYRIGHT]
+Copyright \(co 2005-2009 Gentoo Foundation,
+distributed under the terms of the GNU General Public License v2
+
+[REPORTING BUGS]
+Submit bug reports to https://bugs.gentoo.org/
+
+[AUTHORS]
+Michael Cummings <mcummings@gentoo.org>
+
+Torsten Veller <tove@gentoo.org>
+
+Michael Sterrett [contributor] <mr_bones_@gentoo.org>
+
+Scott Taylor [contributor] <swtaylor@gentoo.org>
+
+Version 2 based on ideas from python-updater.
+
+[EXAMPLES]
+
+\(bu Rebuild packages after a perl upgrade:
+
+    $> perl-cleaner --all
+
+\(bu Rebuild packages after changing the debug or ithreads useflag of perl:
+
+    $> perl-cleaner --all

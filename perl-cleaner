@@ -14,7 +14,7 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2_pre090909"
+PERL_CLEANER_VERSION="2_pre090912"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "paludis" )
@@ -118,7 +118,7 @@ ph_update() {
 }
 
 update_packages(){
-    local libperl content exp lib broken_libs
+    local content exp lib broken_libs
 
     echo
     if ${MODULES} ; then
@@ -134,10 +134,7 @@ update_packages(){
             ewarn "--libperl is disbled."
             LIBPERL=false
         else
-            #libperl="$(echo /usr/lib/libperl.so )"
-            libperl="/usr/lib/libperl.so"
-            SONAME="$(scanelf -qBS $(readlink -f ${libperl} ) | awk '{ print $1 }')"
-            veinfo 3 libperl="${libperl}"
+            SONAME="$(scanelf -qBS $(readlink -f /usr/lib/libperl.so ) | awk '{ print $1 }')"
             veinfo 3 SONAME="${SONAME}"
         fi
     fi
@@ -271,6 +268,8 @@ leftovers() {
 
 usage() {
     cat << EOF_USAGE
+${0##*/} -- Find & rebuild packages and Perl header files broken due to a perl upgrade
+
 Usage: $0 [OPTION]
 
 Options:
@@ -279,13 +278,14 @@ Options:
   -p, --pretend  Pretend (don't do anything)
   -v, --verbose  Increase verbosity (may be specified multiple times)
   --modules      Rebuild perl modules for old installs of perl
-  --allmodules   Rebuild perl modules for any install of perl
+  --allmodules   Rebuild all perl modules
   --libperl      Rebuild anything linked against libperl
   --ph-clean     Clean out old ph files from a previous perl
   --phupdate     Update existing ph files, useful after an upgrade to system parts like the kernel
-  --all          Short for --modules --libperl --phupdate
-  --reallyall    Short for --allmodules --libperl --phupdate
-  --leftovers    Show all modules that were not rebuild
+  --phall        Short for --ph-clean --phupdate
+  --all          Short for --modules --libperl --phall
+  --reallyall    Short for --allmodules --libperl --phall
+  --leftovers    Shows all files that were not rebuild
   -P PM, --package-manager PM
                  Use package manager PM, where PM can be one of:
 $(for p in ${SUPPORTED_PMS} ; do
