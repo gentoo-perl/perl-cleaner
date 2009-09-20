@@ -14,7 +14,7 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2_pre090912"
+PERL_CLEANER_VERSION="2_pre090920"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "paludis" )
@@ -59,7 +59,7 @@ outdated_path(){
         eoutdent
         eoutdent && eoutdent
         return 0
-    elif [[ "${path/${version}\/${archname%%-*}-${osname}}" != ${path} && ${path} == ${path/${archname}\/} ]] ; then
+    elif [[ ${path/${version}\/${archname%%-*}-${osname}} != ${path} && ${path} == ${path/${archname}\/} ]] ; then
         eindent
         veinfo 3 "Found different archname"
         eoutdent
@@ -169,7 +169,7 @@ update_packages(){
 #        fi
         # Replace SLOT by version number when REINSTALL_IDENTICAL_VERSIONS == 1
         # Reinstall identical versions when SLOT doesn't exist, bug #201848
-        if ${REINSTALL_IDENTICAL_VERSIONS} || [[ ! -f "${content/CONTENTS/SLOT}" ]] ; then
+        if ${REINSTALL_IDENTICAL_VERSIONS} || [[ ! -f ${content/CONTENTS/SLOT} ]] ; then
                 CATPKGVER="=${CATPKGVER}"
         else
                 SLOT=$(< ${content/CONTENTS/SLOT})
@@ -205,6 +205,7 @@ update_packages(){
         [[ ${exception} == 3 ]] && continue
 
         if ${LIBPERL} ; then
+            # We assume the broken libs have all bin or lib in their path
             broken_libs="$(scanelf -qBn < <(awk '/^obj [^ ]*\/(s?bin|lib)/{ print $2 }' ${content} ) | grep -o 'libperl\.so\.[0-9.]*' )"
             if [[ -n "${broken_libs}" ]] ; then
                 if ${FORCE} || [[ ${broken_libs} != ${SONAME} ]] ; then
@@ -225,7 +226,7 @@ update_packages(){
         fi
     done
     # Pipe to command if we have one
-    if [[ -n "${PIPE_COMMAND}" ]] ; then
+    if [[ -n ${PIPE_COMMAND} ]] ; then
         echo "${PKGS_TO_REMERGE}" | ${PIPE_COMMAND}
         exit $?
     fi
@@ -234,12 +235,16 @@ update_packages(){
     ${PRETEND} && PMS_OPTIONS[${PMS_INDEX}]="${PMS_OPTIONS[${PMS_INDEX}]}p"
 
     # (Pretend to) remerge packages
-    if [[ -n "${PKGS_TO_REMERGE}" ]] ; then
+    if [[ -n ${PKGS_TO_REMERGE} ]] ; then
         pmscmd="${CUSTOM_PMS_COMMAND}"
-        [[ -z "${pmscmd}" ]] && pmscmd="${PMS_COMMAND[${PMS_INDEX}]}"
+        [[ -z ${pmscmd} ]] && pmscmd="${PMS_COMMAND[${PMS_INDEX}]}"
         cmd="${pmscmd} ${PMS_OPTIONS[${PMS_INDEX}]} ${ADDITIONAL_OPTIONS} ${PKGS_TO_REMERGE}"
         einfo ${cmd}
-        ${cmd}
+        if ! ${cmd} ; then
+            einfo "perl-cleaner is stopping here:"
+            einfo "Fix the problem and start perl-cleaner again."
+            exit 1
+        fi
     else
         einfo "No packages needs to be remerged."
     fi
