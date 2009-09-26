@@ -236,7 +236,7 @@ update_packages(){
         emerge_default_opts=""
         for option in $(portageq envvar EMERGE_DEFAULT_OPTS ) ; do
             if [[ "${option}" == -[[:alnum:]]* ]]; then
-                emerge_default_opts+=" ${option//[gGkK]/}"
+                [[ ${option//[gGkK]/} != - ]] && emerge_default_opts+=" ${option//[gGkK]/}"
             elif [[ "${option}" != "--getbinpkg" && "${option}" != "--getbinpkgonly" && "${option}" != "--usepkg" && "${option}" != "--usepkgonly" ]]; then
                 emerge_default_opts+=" ${option}"
             fi
