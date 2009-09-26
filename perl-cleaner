@@ -231,6 +231,19 @@ update_packages(){
         exit $?
     fi
 
+    if [[ ${PMS_COMMAND[${PMS_INDEX}]} == emerge && -x /usr/bin/portageq ]] ; then
+        # Filter out --getbinpkg, --getbinpkgonly, --usepkg and --usepkgonly options in EMERGE_DEFAULT_OPTS
+        emerge_default_opts=""
+        for option in $(portageq envvar EMERGE_DEFAULT_OPTS ) ; do
+            if [[ "${option}" == -[[:alnum:]]* ]]; then
+                emerge_default_opts+=" ${option//[gGkK]/}"
+            elif [[ "${option}" != "--getbinpkg" && "${option}" != "--getbinpkgonly" && "${option}" != "--usepkg" && "${option}" != "--usepkgonly" ]]; then
+                emerge_default_opts+=" ${option}"
+            fi
+        done
+        export EMERGE_DEFAULT_OPTS="${emerge_default_opts# }"
+    fi
+
     # only pretending?
     ${PRETEND} && PMS_OPTIONS[${PMS_INDEX}]="${PMS_OPTIONS[${PMS_INDEX}]}p"
 
