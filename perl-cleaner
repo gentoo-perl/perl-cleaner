@@ -14,7 +14,7 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2_pre090926"
+PERL_CLEANER_VERSION="2_pre091007"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "paludis" )
@@ -24,7 +24,7 @@ CUSTOM_PMS_COMMAND=""
 PKGS_TO_REMERGE=""
 PKGS_COUNT_REMERGE=0
 
-PKGS_EXCEPTIONS="dev-lang/perl"
+PKGS_EXCEPTIONS="dev-lang/perl sys-devel/libperl"
 PKGS_MANUAL=""
 
 PKG_DBDIR=/var/db/pkg
