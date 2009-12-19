@@ -14,7 +14,7 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2_pre091007"
+PERL_CLEANER_VERSION="2_pre091024"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "paludis" )
@@ -188,10 +188,14 @@ update_packages(){
         if ${MODULES} ; then
             for file in $(grep -Ee "^obj /usr/lib(32|64)?/perl5/" ${content} | cut -d' ' -f2 ) ; do
                 if ${FORCE} || outdated_path "${file}" ; then
-                    PKGS_TO_REMERGE="${PKGS_TO_REMERGE} ${CATPKGVER}"
+                    PKGS_TO_REMERGE+=" ${CATPKGVER}"
                     exception=3
                     eindent
                     einfo "Adding to list: ${CATPKGVER}"
+                    if [[ ${CATPKGVER} == perl-core/* ]] ; then
+                        PKGS_TO_REMERGE+=" ${CATPKGVER/perl-core\//virtual/perl-}"
+                        einfo "Adding to list: ${CATPKGVER/perl-core\//virtual/perl-}"
+                    fi
                     eindent
                     veinfo 1 "check: module ${file}"
                     eoutdent
@@ -208,7 +212,7 @@ update_packages(){
             broken_libs="$(scanelf -qBn < <(awk '/^obj [^ ]*\/(s?bin|lib)/{ print $2 }' ${content} ) | grep -o 'libperl\.so\.[0-9.]*' | sort | uniq )"
             if [[ -n "${broken_libs}" ]] ; then
                 if ${FORCE} || [[ ${broken_libs} != ${SONAME} ]] ; then
-                    PKGS_TO_REMERGE="${PKGS_TO_REMERGE} ${CATPKGVER}"
+                    PKGS_TO_REMERGE+=" ${CATPKGVER}"
                     eindent
                     einfo "Adding to list: ${CATPKGVER}"
                     eindent
