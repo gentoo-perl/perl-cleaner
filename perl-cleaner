@@ -14,7 +14,7 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2_pre091024"
+PERL_CLEANER_VERSION="2_pre091219"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "paludis" )
