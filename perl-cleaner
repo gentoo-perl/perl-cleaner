@@ -141,9 +141,9 @@ update_packages(){
     # iterate thru all the installed package's contents
     for content in $(find ${PKG_DBDIR} -name CONTENTS ) ; do
         # extract the category, package name and package version
-        CATPKGVER=$(echo ${content} | sed "s:${PKG_DBDIR}/\(.*\)/CONTENTS:\1:" )
-        CATPKG="${CATPKGVER%%-[0-9]*}"
-        veinfo 3 "Checking ${CATPKGVER}"
+        CPV=$(echo ${content} | sed "s:${PKG_DBDIR}/\(.*\)/CONTENTS:\1:" )
+        CATPKG="${CPV%%-[0-9]*}"
+        veinfo 3 "Checking ${CPV}"
 
         # exclude packages that are an exception
         exception=0
@@ -169,7 +169,7 @@ update_packages(){
         # Replace SLOT by version number when REINSTALL_IDENTICAL_VERSIONS == 1
         # Reinstall identical versions when SLOT doesn't exist, bug #201848
         if ${REINSTALL_IDENTICAL_VERSIONS} || [[ ! -f ${content/CONTENTS/SLOT} ]] ; then
-                CATPKGVER="=${CATPKGVER}"
+                CATPKGVER="=${CPV}"
         else
                 SLOT=$(< ${content/CONTENTS/SLOT})
                 CATPKGVER="${CATPKG}:${SLOT}"
@@ -192,9 +192,16 @@ update_packages(){
                     exception=3
                     eindent
                     einfo "Adding to list: ${CATPKGVER}"
+                    # Reinstall the virtual for non-identical packages too
+                    # else ~cpv results in missmatch too often.
+                    # Some perl-core packages do not have a virtual
                     if [[ ${CATPKGVER} == perl-core/* ]] ; then
-                        PKGS_TO_REMERGE+=" ${CATPKGVER/perl-core\//virtual/perl-}"
-                        einfo "Adding to list: ${CATPKGVER/perl-core\//virtual/perl-}"
+                        if [[ -d ${PKG_DBDIR}/${CPV/perl-core\//virtual/perl-} ]] ; then
+                            PKGS_TO_REMERGE+=" ${CATPKGVER/perl-core\//virtual/perl-}"
+                            einfo "                ${CATPKGVER/perl-core\//virtual/perl-}"
+                        else
+                            veinfo 1 "No virtual: ${CATPKGVER/perl-core\//virtual/perl-}"
+                        fi
                     fi
                     eindent
                     veinfo 1 "check: module ${file}"
