@@ -313,7 +313,7 @@ Options:
   --phall        Short for --ph-clean --phupdate
   --all          Short for --modules --libperl --phall
   --reallyall    Short for --allmodules --libperl --phall
-  --leftovers    Shows all files that were not rebuild
+  --leftovers    Shows all files that were not rebuilt
   -P PM, --package-manager PM
                  Use package manager PM, where PM can be one of:
 $(for p in ${SUPPORTED_PMS} ; do
