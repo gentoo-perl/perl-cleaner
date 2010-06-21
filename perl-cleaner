@@ -14,7 +14,7 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2.0"
+PERL_CLEANER_VERSION="2.2"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "paludis" )
@@ -106,14 +106,28 @@ ph_update() {
         return
     fi
     cd /usr/include
-    eindent
-    veinfo 1 "...in /usr/include"
-    h2ph ${option} * 2>/dev/null
-    for dir in sys arpa netinet bits security asm gnu linux ; do
-        veinfo 1 "...in /usr/include/$dir/"
-        h2ph ${option} -r $dir/*
-    done
-    eoutdent
+    if [[ ${version} =~ ^5.(8|10) ]] ; then
+        eindent
+        veinfo 1 "...in /usr/include"
+        h2ph ${option} * 2>/dev/null
+        for dir in sys arpa netinet bits security asm gnu linux ; do
+            veinfo 1 "...in /usr/include/$dir/"
+            h2ph ${option} -r $dir/*
+        done
+        eoutdent
+    else
+        h2ph ${option} -a -d ${archlibexp} \
+            asm/termios.h \
+            syscall.h     \
+            syslimits.h   \
+            syslog.h      \
+            sys/ioctl.h   \
+            sys/socket.h  \
+            sys/time.h    \
+            wait.h        \
+            sysexits.h
+    fi
+
 }
 
 update_packages(){
@@ -141,8 +155,10 @@ update_packages(){
     # iterate thru all the installed package's contents
     for content in $(find ${PKG_DBDIR} -path "*/-MERGING-*" -prune -o -name CONTENTS -print ) ; do
         # extract the category, package name and package version
-        CPV=$(echo ${content} | sed "s:${PKG_DBDIR}/\(.*\)/CONTENTS:\1:" )
-        CATPKG="${CPV%%-[0-9]*}"
+        #CPV=$(sed "s:${PKG_DBDIR}/\(.*\)/CONTENTS:\1:" <<< ${content} )
+        CPV=${content#${PKG_DBDIR}/}
+        CPV=${CPV%/CONTENTS}
+        CATPKG="${CPV%-[0-9]*}"
         veinfo 3 "Checking ${CPV}"
 
         # exclude packages that are an exception
@@ -186,7 +202,7 @@ update_packages(){
 #        fi
 
         if ${MODULES} ; then
-            for file in $(grep -Ee "^obj /usr/lib(32|64)?/perl5/" ${content} | cut -d' ' -f2 ) ; do
+            for file in $(grep -Ee "^obj /usr/(share|lib(32|64)?)/perl5" ${content} | cut -d' ' -f2 ) ; do
                 if ${FORCE} || outdated_path "${file}" ; then
                     PKGS_TO_REMERGE+=" ${CATPKGVER}"
                     exception=3
@@ -216,7 +232,7 @@ update_packages(){
 
         if ${LIBPERL} ; then
             # We assume the broken libs have all bin or lib in their path
-            broken_libs="$(scanelf -qBn < <(awk '/^obj [^ ]*\/(s?bin|lib)/{ print $2 }' ${content} ) | grep -o 'libperl\.so\.[0-9.]*' | sort | uniq )"
+            broken_libs="$(scanelf -qBn < <(awk '/^obj [^ ]*\/(s?bin|lib(32|64)?)\// && ! /^obj [^ ]*\/usr\/lib\/debug\//{ print $2 }' ${content} ) | grep -o 'libperl\.so\.[0-9.]*' | sort | uniq )"
             if [[ -n "${broken_libs}" ]] ; then
                 if ${FORCE} || [[ ${broken_libs} != ${SONAME} ]] ; then
                     PKGS_TO_REMERGE+=" ${CATPKGVER}"
@@ -345,17 +361,6 @@ LEFTOVERS=false
 PRETEND=false
 VERBOSE=0
 
-# version=
-eval $(perl '-V:version' )
-veinfo 2 "Installed perl version: ${version}"
-# archname=
-eval $(perl '-V:archname' )
-veinfo 2 "Installed perl archname: ${archname}"
-# osname=
-eval $(perl '-V:osname' )
-veinfo 2 "Installed perl osname: ${osname}"
-gversion=${version//./\\\.}
-
 while [[ -n "$1" ]] ; do
     case "$1" in
         help|--help|-h)
@@ -451,6 +456,24 @@ while [[ -n "$1" ]] ; do
     esac
     shift
 done
+
+# version=
+eval $(perl -V:version )
+veinfo 2 "Installed perl version: ${version}"
+# archname=
+eval $(perl -V:archname )
+veinfo 2 "Installed perl archname: ${archname}"
+# osname=
+eval $(perl -V:osname )
+veinfo 2 "Installed perl osname: ${osname}"
+gversion=${version//./\\\.}
+# archlibexp=
+# vendorarchexp=
+# vendorlibexp=
+eval $(perl -V:{archlib,vendorlib,vendorarch}exp )
+veinfo 2 "archlibexp path: ${archlibexp}"
+veinfo 2 "vendorarchexp path: ${vendorarchexp}"
+veinfo 2 "vendorlibexp path: ${vendorlibexp}"
 
 ${FORCE} && version="0.0.0" && gversion="0\.0\.0"
 ${PHCLEAN} && ph_clean
