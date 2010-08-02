@@ -14,7 +14,7 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2.2"
+PERL_CLEANER_VERSION="2.3"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "paludis" )
@@ -100,7 +100,8 @@ ph_update() {
     local option dir
     [[ VERBOSE -le 1 ]] && option="-Q"
     echo
-    einfo "Updating ph files"
+    einfo "Updating ph files."
+    einfo "Ignore all \"No such file...\" messages!"
     if ${PRETEND} ; then
         einfo "Pretend. Nothing to do."
         return
@@ -153,7 +154,7 @@ update_packages(){
     fi
 
     # iterate thru all the installed package's contents
-    for content in $(find ${PKG_DBDIR} -path "*/-MERGING-*" -prune -o -name CONTENTS -print ) ; do
+    for content in $(find -L ${PKG_DBDIR} -path "*/-MERGING-*" -prune -o -name CONTENTS -print ) ; do
         # extract the category, package name and package version
         #CPV=$(sed "s:${PKG_DBDIR}/\(.*\)/CONTENTS:\1:" <<< ${content} )
         CPV=${content#${PKG_DBDIR}/}
@@ -209,15 +210,19 @@ update_packages(){
                     eindent
                     einfo "Adding to list: ${CATPKGVER}"
                     # Reinstall the virtual for non-identical packages too
-                    # else ~cpv results in missmatch too often.
+                    # else ~cpv results in mismatches too often.
                     # Some perl-core packages do not have a virtual
                     if [[ ${CATPKGVER} == perl-core/* ]] ; then
-                        if [[ -d ${PKG_DBDIR}/${CPV/perl-core\//virtual/perl-} ]] ; then
-                            PKGS_TO_REMERGE+=" ${CATPKGVER/perl-core\//virtual/perl-}"
-                            einfo "                ${CATPKGVER/perl-core\//virtual/perl-}"
-                        else
-                            veinfo 1 "No virtual: ${CATPKGVER/perl-core\//virtual/perl-}"
-                        fi
+                        for virtual in "${PKG_DBDIR}"/${CATPKG/perl-core\//virtual/perl-}-[0-9]* ; do
+                            if [[ -d ${virtual} && ${virtual} != "${PKG_DBDIR}"/${CPV/perl-core\//virtual/perl-} ]] ; then
+                                PKGS_TO_REMERGE+=" ${CATPKGVER/perl-core\//virtual/perl-}"
+                                einfo "                ${CATPKGVER/perl-core\//virtual/perl-}"
+                            elif [[ ${virtual} == "${PKG_DBDIR}"/${CPV/perl-core\//virtual/perl-} ]] ; then
+                                veinfo 1 "Up to date: ${CATPKGVER/perl-core\//virtual/perl-}"
+                            else
+                                veinfo 1 "No virtual: ${CATPKGVER/perl-core\//virtual/perl-}"
+                            fi
+                        done
                     fi
                     eindent
                     veinfo 1 "check: module ${file}"
