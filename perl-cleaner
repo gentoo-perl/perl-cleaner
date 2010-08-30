@@ -14,7 +14,7 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2.3"
+PERL_CLEANER_VERSION="2.4"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "paludis" )
@@ -214,11 +214,9 @@ update_packages(){
                     # Some perl-core packages do not have a virtual
                     if [[ ${CATPKGVER} == perl-core/* ]] ; then
                         for virtual in "${PKG_DBDIR}"/${CATPKG/perl-core\//virtual/perl-}-[0-9]* ; do
-                            if [[ -d ${virtual} && ${virtual} != "${PKG_DBDIR}"/${CPV/perl-core\//virtual/perl-} ]] ; then
+                            if [[ -d ${virtual} ]] ; then
                                 PKGS_TO_REMERGE+=" ${CATPKGVER/perl-core\//virtual/perl-}"
                                 einfo "                ${CATPKGVER/perl-core\//virtual/perl-}"
-                            elif [[ ${virtual} == "${PKG_DBDIR}"/${CPV/perl-core\//virtual/perl-} ]] ; then
-                                veinfo 1 "Up to date: ${CATPKGVER/perl-core\//virtual/perl-}"
                             else
                                 veinfo 1 "No virtual: ${CATPKGVER/perl-core\//virtual/perl-}"
                             fi
