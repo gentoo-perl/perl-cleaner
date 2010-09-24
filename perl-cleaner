@@ -14,7 +14,7 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2.4"
+PERL_CLEANER_VERSION="2.5"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "paludis" )
@@ -71,28 +71,27 @@ outdated_path(){
 
 # This is to clean out the old .ph files generated in our last perl install
 ph_clean() {
-    local file INC
+    local file i
     echo
     einfo "Beginning a clean up of .ph files"
     einfo "Excluding files for ${version} and ${version}/${archname} from cleaning"
     echo
 
-    INC=$(perl -e 'for $line (@INC) { next if $line eq "."; next if $line =~ m/'${gversion}'(\/'${archname}')?$/; print "$line\n" }' )
-    if [[ -n "${INC}" ]]; then
-        einfo "Locating ph files for removal"
-        eindent ""
-        veinfo 3 "...in ${INC}"
-        for file in $(find ${INC} -name "*.ph" -type f 2>/dev/null | sort | uniq ); do
+    einfo "Locating ph files for removal"
+    eindent ""
+    for i in /usr/lib64/perl5 /usr/lib/perl5 ; do
+        [[ ! -d ${i} ]] && continue
+        veinfo 3 "...in ${i}"
+        for file in $(find ${i} -name "*.ph" -type f 2>/dev/null | sort | uniq ); do
              if outdated_path "${file}" ; then
                 veinfo 1 "Removing: ${file}"
                 ${PRETEND} || rm "${file}"
             fi
         done
-        eoutdent
-    fi
-
-    # Silently remove those dirs that we just emptied
-    find "${INC}" -depth -type d 2>/dev/null | grep -v "${gversion}" | xargs -r rmdir 2>/dev/null
+        # Silently remove those dirs that we just emptied
+        find "${i}" -depth -type d 2>/dev/null | grep -v "${gversion}" | xargs -r rmdir 2>/dev/null
+    done
+    eoutdent
 }
 
 # Generate ph files; this is useful if we've upgraded packages with headers so that perl knows the new info
@@ -106,7 +105,7 @@ ph_update() {
         einfo "Pretend. Nothing to do."
         return
     fi
-    cd /usr/include
+    pushd /usr/include > /dev/null
     if [[ ${version} =~ ^5.(8|10) ]] ; then
         eindent
         veinfo 1 "...in /usr/include"
@@ -128,6 +127,7 @@ ph_update() {
             wait.h        \
             sysexits.h
     fi
+    popd > /dev/null
 
 }
 
