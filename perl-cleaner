@@ -14,7 +14,7 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2.5"
+PERL_CLEANER_VERSION="2.6"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "paludis" )
@@ -82,12 +82,12 @@ ph_clean() {
     for i in /usr/lib64/perl5 /usr/lib/perl5 ; do
         [[ ! -d ${i} ]] && continue
         veinfo 3 "...in ${i}"
-        for file in $(find ${i} -name "*.ph" -type f 2>/dev/null | sort | uniq ); do
+        while IFS= read -r -d $'\0' file ; do
              if outdated_path "${file}" ; then
-                veinfo 1 "Removing: ${file}"
+                veinfo 1 "Removing: '${file}'"
                 ${PRETEND} || rm "${file}"
             fi
-        done
+        done < <( find ${i} -name "*.ph" -type f -print0 2>/dev/null | sort -zu )
         # Silently remove those dirs that we just emptied
         find "${i}" -depth -type d 2>/dev/null | grep -v "${gversion}" | xargs -r rmdir 2>/dev/null
     done
@@ -148,13 +148,13 @@ update_packages(){
             ewarn "--libperl is disbled."
             LIBPERL=false
         else
-            SONAME="$(scanelf -qBS $(readlink -f /usr/lib/libperl.so ) | awk '{ print $1 }')"
+            SONAME="$(scanelf -qBS "$(readlink -f /usr/lib/libperl.so )" | awk '{ print $1 }')"
             veinfo 3 SONAME="${SONAME}"
         fi
     fi
 
     # iterate thru all the installed package's contents
-    for content in $(find -L ${PKG_DBDIR} -path "*/-MERGING-*" -prune -o -name CONTENTS -print ) ; do
+    while IFS= read -r -d $'\0' content; do
         # extract the category, package name and package version
         #CPV=$(sed "s:${PKG_DBDIR}/\(.*\)/CONTENTS:\1:" <<< ${content} )
         CPV=${content#${PKG_DBDIR}/}
@@ -203,7 +203,12 @@ update_packages(){
 #        fi
 
         if ${MODULES} ; then
-            for file in $(grep -Ee "^obj /usr/(share|lib(32|64)?)/perl5" ${content} | cut -d' ' -f2 ) ; do
+            while read -r type file ; do
+                shopt -s extglob
+                [[ ${type} == obj ]] || continue
+                [[ ${file} =~ ^/usr/(share|lib(32|64)?)/perl5 ]] || continue
+                file=${file% +(!([[:space:]])) +([[:digit:]])}
+                shopt -u extglob
                 if ${FORCE} || outdated_path "${file}" ; then
                     PKGS_TO_REMERGE+=" ${CATPKGVER}"
                     exception=3
@@ -228,7 +233,7 @@ update_packages(){
                     eoutdent
                     break
                 fi
-            done
+            done < "${content}"
         fi
 
         [[ ${exception} == 3 ]] && continue
@@ -253,7 +258,7 @@ update_packages(){
                 fi
             fi
         fi
-    done
+    done < <( find -L ${PKG_DBDIR} -path "*/-MERGING-*" -prune -o -name CONTENTS -print0 )
     # Pipe to command if we have one
     if [[ -n ${PIPE_COMMAND} ]] ; then
         echo "${PKGS_TO_REMERGE}" | ${PIPE_COMMAND}
@@ -288,7 +293,7 @@ update_packages(){
             exit 1
         fi
     else
-        einfo "No packages needs to be remerged."
+        einfo "No package needs to be reinstalled."
     fi
 }
 
@@ -305,11 +310,11 @@ leftovers() {
     INC=$(perl -e 'for $line (@INC) { next if $line =~ m/\.$|'${version}'(\/'${archname}')?$/; print "$line\n" }')
 
     for inc in ${INC} ; do
-        for path in $(find $inc -mindepth 2 -maxdepth 2 -type d  2>/dev/null ) ; do
+        while IFS= read -r -d $'\0' path ; do
              if outdated_path "${path}/" ; then
-                find ${path} -type f
+                find "${path}" -type f
             fi
-        done
+        done <  <( find $inc -mindepth 2 -maxdepth 2 -type d -print0  2>/dev/null )
     done | sort -u
 }
 
