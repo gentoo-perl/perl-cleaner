@@ -16,10 +16,10 @@
 
 PERL_CLEANER_VERSION="2.7"
 
-SUPPORTED_PMS="portage pkgcore paludis cave"
-PMS_COMMAND=( "emerge" "pmerge" "paludis" "cave resolve" )
-PMS_OPTIONS=( "-vD1" "-Do" "-i1" "-x1z" )
-PMS_PRETEND=( "-p" "-p" "-p" "--no-execute" )
+SUPPORTED_PMS="portage pkgcore paludis"
+PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
+PMS_OPTIONS=( "-vD1" "-Do" "-x1z" )
+PMS_PRETEND=( "-p" "-p" "--no-execute" )
 CUSTOM_PMS_COMMAND=""
 
 PKGS_TO_REMERGE=""
@@ -389,7 +389,7 @@ while [[ -n "$1" ]] ; do
             shift
             PACKAGE_MANAGER="$1"
             case "${PACKAGE_MANAGER}" in
-                portage|pkgcore|paludis|cave)
+                portage|pkgcore|paludis)
                     ;;
                 *)
                     echo "unrecognised package manager selected. please select between ${SUPPORTED_PMS}"
