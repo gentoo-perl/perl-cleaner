@@ -14,7 +14,7 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2.8"
+PERL_CLEANER_VERSION="2.9"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
@@ -47,21 +47,28 @@ veinfo() {
     fi
 }
 
+vecho() {
+    if [[ VERBOSE -ge $1 ]] ; then
+        shift
+        echo "$@"
+    fi
+}
+
 outdated_path(){
     local path="$1"
 
     eindent && eindent
-    veinfo 3 "Check: ${path}"
+    veinfo 4 "Check: ${path}"
 
     if [[ ${path} == ${path/${version}} ]] ; then
         eindent
-        veinfo 3 "Found different version"
+        veinfo 4 "Found different version"
         eoutdent
         eoutdent && eoutdent
         return 0
     elif [[ ${path/${version}\/${archname%%-*}-${osname}} != ${path} && ${path} == ${path/${archname}\/} ]] ; then
         eindent
-        veinfo 3 "Found different archname"
+        veinfo 4 "Found different archname"
         eoutdent
         eoutdent && eoutdent
         return 0
@@ -73,19 +80,19 @@ outdated_path(){
 # This is to clean out the old .ph files generated in our last perl install
 ph_clean() {
     local file i
-    echo
-    einfo "Beginning a clean up of .ph files"
-    einfo "Excluding files for ${version} and ${version}/${archname} from cleaning"
-    echo
+    vecho 1
+    veinfo 1 "Beginning a clean up of .ph files"
+    veinfo 1 "Excluding files for ${version} and ${version}/${archname} from cleaning"
+    vecho 1
 
-    einfo "Locating ph files for removal"
+    veinfo 1 "Locating ph files for removal"
     eindent ""
     for i in /usr/lib64/perl5 /usr/lib/perl5 ; do
         [[ ! -d ${i} ]] && continue
-        veinfo 3 "...in ${i}"
+        veinfo 4 "...in ${i}"
         while IFS= read -r -d $'\0' file ; do
              if outdated_path "${file}" ; then
-                veinfo 1 "Removing: '${file}'"
+                veinfo 2 "Removing: '${file}'"
                 ${PRETEND} || rm "${file}"
             fi
         done < <( find ${i} -name "*.ph" -type f -print0 2>/dev/null | sort -zu )
@@ -99,20 +106,20 @@ ph_clean() {
 ph_update() {
     local option dir
     [[ VERBOSE -le 1 ]] && option="-Q"
-    echo
-    einfo "Updating ph files."
-    einfo "Ignore all \"No such file...\" messages!"
+    vecho 1
+    veinfo 1 "Updating ph files."
+    veinfo 1 "Ignore all \"No such file...\" messages!"
     if ${PRETEND} ; then
-        einfo "Pretend. Nothing to do."
+        veinfo 1 "Pretend. Nothing to do."
         return
     fi
     pushd /usr/include > /dev/null
     if [[ ${version} =~ ^5.(8|10) ]] ; then
         eindent
-        veinfo 1 "...in /usr/include"
+        veinfo 2 "...in /usr/include"
         h2ph ${option} * 2>/dev/null
         for dir in sys arpa netinet bits security asm gnu linux ; do
-            veinfo 1 "...in /usr/include/$dir/"
+            veinfo 2 "...in /usr/include/$dir/"
             h2ph ${option} -r $dir/*
         done
         eoutdent
@@ -135,12 +142,12 @@ ph_update() {
 update_packages(){
     local content exp lib broken_libs
 
-    echo
+    vecho 1
     if ${MODULES} ; then
-        einfo "Locating packages for an update"
+        veinfo 1 "Locating packages for an update"
     fi
     if ${LIBPERL} ; then
-        einfo "Locating ebuilds linked against libperl"
+        veinfo 1 "Locating ebuilds linked against libperl"
     fi
 
     if ${LIBPERL} ; then
@@ -150,7 +157,7 @@ update_packages(){
             LIBPERL=false
         else
             SONAME="$(scanelf -qBS "$(readlink -f /usr/lib/libperl.so )" | awk '{ print $1 }')"
-            veinfo 3 SONAME="${SONAME}"
+            veinfo 4 SONAME="${SONAME}"
         fi
     fi
 
@@ -161,13 +168,13 @@ update_packages(){
         CPV=${content#${PKG_DBDIR}/}
         CPV=${CPV%/CONTENTS}
         CATPKG="${CPV%-[0-9]*}"
-        veinfo 3 "Checking ${CPV}"
+        veinfo 4 "Checking ${CPV}"
 
         # exclude packages that are an exception
         exception=0
         for exp in ${PKGS_EXCEPTIONS} ; do
             if [[ -z "${CATPKG##${exp}}" ]]; then
-                veinfo 2 "Skipping ${CATPKG}, reason: exception"
+                veinfo 3 "Skipping ${CATPKG}, reason: exception"
                 exception=1
                 break
             fi
@@ -214,7 +221,7 @@ update_packages(){
                     PKGS_TO_REMERGE+=" ${CATPKGVER}"
                     exception=3
                     eindent
-                    einfo "Adding to list: ${CATPKGVER}"
+                    veinfo 1 "Adding to list: ${CATPKGVER}"
                     # Reinstall the virtual for non-identical packages too
                     # else ~cpv results in mismatches too often.
                     # Some perl-core packages do not have a virtual
@@ -222,14 +229,14 @@ update_packages(){
                         for virtual in "${PKG_DBDIR}"/${CATPKG/perl-core\//virtual/perl-}-[0-9]* ; do
                             if [[ -d ${virtual} ]] ; then
                                 PKGS_TO_REMERGE+=" ${CATPKGVER/perl-core\//virtual/perl-}"
-                                einfo "                ${CATPKGVER/perl-core\//virtual/perl-}"
+                                veinfo 1 "                ${CATPKGVER/perl-core\//virtual/perl-}"
                             else
-                                veinfo 1 "No virtual: ${CATPKGVER/perl-core\//virtual/perl-}"
+                                veinfo 2 "No virtual: ${CATPKGVER/perl-core\//virtual/perl-}"
                             fi
                         done
                     fi
                     eindent
-                    veinfo 1 "check: module ${file}"
+                    veinfo 2 "check: module ${file}"
                     eoutdent
                     eoutdent
                     break
@@ -246,15 +253,15 @@ update_packages(){
                 if ${FORCE} || [[ ${broken_libs} != ${SONAME} ]] ; then
                     PKGS_TO_REMERGE+=" ${CATPKGVER}"
                     eindent
-                    einfo "Adding to list: ${CATPKGVER}"
+                    veinfo 1 "Adding to list: ${CATPKGVER}"
                     eindent
-                    veinfo 1 "check: libperl ${broken_libs}"
+                    veinfo 2 "check: libperl ${broken_libs}"
                     eoutdent
                     eoutdent
                 else
                     eindent
-                    veinfo 2 "Not adding: ${CATPKGVER} because it should be uptodate."
-                    veinfo 2 "check: libperl ${broken_libs}"
+                    veinfo 3 "Not adding: ${CATPKGVER} because it should be uptodate."
+                    veinfo 3 "check: libperl ${broken_libs}"
                     eoutdent
                 fi
             fi
@@ -287,26 +294,26 @@ update_packages(){
         pmscmd="${CUSTOM_PMS_COMMAND}"
         [[ -z ${pmscmd} ]] && pmscmd="${PMS_COMMAND[${PMS_INDEX}]}"
         cmd="${pmscmd} ${PMS_OPTIONS[${PMS_INDEX}]} ${ADDITIONAL_OPTIONS} ${PKGS_TO_REMERGE}"
-        einfo ${cmd}
+        veinfo 1 ${cmd}
         if ! ${cmd} ; then
-            einfo "perl-cleaner is stopping here:"
-            einfo "Fix the problem and start perl-cleaner again."
+            veinfo 0 "perl-cleaner is stopping here:"
+            veinfo 0 "Fix the problem and start perl-cleaner again."
             exit 1
         fi
     else
-        einfo "No package needs to be reinstalled."
+        veinfo 1 "No package needs to be reinstalled."
     fi
 }
 
 # Assuming a successful module run, look to see whats left over
 leftovers() {
     local path i perlpath=()
-    echo
-    einfo "Finding left over modules and header"
-    echo
-    einfo "The following files remain. These were either installed by hand"
-    einfo "or edited. This script cannot deal with them."
-    echo
+    vecho 1
+    veinfo 1 "Finding left over modules and header"
+    vecho 1
+    veinfo 1 "The following files remain. These were either installed by hand"
+    veinfo 1 "or edited. This script cannot deal with them."
+    vecho 1
 
     for i in /usr/{share,lib{,32,64}}/perl5 ; do
         [[ -d $i ]] && perlpath[${#perlpath[*]}]="$(readlink -f $i)"
@@ -330,6 +337,7 @@ Options:
   -V, --version  Print version
   -p, --pretend  Pretend (don't do anything)
   -v, --verbose  Increase verbosity (may be specified multiple times)
+  -q, --quiet    Decrease verbosity
   --modules      Rebuild perl modules for old installs of perl
   --allmodules   Rebuild all perl modules
   --libperl      Rebuild anything linked against libperl
@@ -368,7 +376,7 @@ PHUPDATE=false
 FORCE=false
 LEFTOVERS=false
 PRETEND=false
-VERBOSE=0
+VERBOSE=1
 
 while [[ -n "$1" ]] ; do
     case "$1" in
@@ -384,6 +392,9 @@ while [[ -n "$1" ]] ; do
             ;;
         -v|--verbose)
             VERBOSE=$(( ${VERBOSE} + 1 ))
+            ;;
+        -q|--quiet)
+            VERBOSE=$(( ${VERBOSE} - 1 ))
             ;;
         -P|--package-manager)
             shift
@@ -468,21 +479,21 @@ done
 
 # version=
 eval $(perl -V:version )
-veinfo 2 "Installed perl version: ${version}"
+veinfo 3 "Installed perl version: ${version}"
 # archname=
 eval $(perl -V:archname )
-veinfo 2 "Installed perl archname: ${archname}"
+veinfo 3 "Installed perl archname: ${archname}"
 # osname=
 eval $(perl -V:osname )
-veinfo 2 "Installed perl osname: ${osname}"
+veinfo 3 "Installed perl osname: ${osname}"
 gversion=${version//./\\\.}
 # archlibexp=
 # vendorarchexp=
 # vendorlibexp=
 eval $(perl -V:{archlib,vendorlib,vendorarch}exp )
-veinfo 2 "archlibexp path: ${archlibexp}"
-veinfo 2 "vendorarchexp path: ${vendorarchexp}"
-veinfo 2 "vendorlibexp path: ${vendorlibexp}"
+veinfo 3 "archlibexp path: ${archlibexp}"
+veinfo 3 "vendorarchexp path: ${vendorarchexp}"
+veinfo 3 "vendorlibexp path: ${vendorlibexp}"
 
 ${FORCE} && version="0.0.0" && gversion="0\.0\.0"
 ${PHCLEAN} && ph_clean
