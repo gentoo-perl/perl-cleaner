@@ -156,7 +156,7 @@ update_packages(){
             ewarn "--libperl is disbled."
             LIBPERL=false
         else
-            SONAME="$(scanelf -qBS "$(readlink -f /usr/lib/libperl.so )" | awk '{ print $1 }')"
+            SONAME="$(scanelf -qBS "$(realpath /usr/lib/libperl.so 2>/dev/null )" | awk '{ print $1 }')"
             veinfo 4 SONAME="${SONAME}"
         fi
     fi
@@ -316,7 +316,7 @@ leftovers() {
     vecho 1
 
     for i in /usr/{share,lib{,32,64}}/perl5 ; do
-        [[ -d $i ]] && perlpath[${#perlpath[*]}]="$(readlink -f $i)"
+        [[ -d $i ]] && perlpath[${#perlpath[*]}]="$(realpath $i 2>/dev/null )"
     done
     [[ ${#perlpath[*]} == 0 ]] && return
     while IFS= read -r -d $'\0' path ; do
