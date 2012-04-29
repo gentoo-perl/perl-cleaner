@@ -14,7 +14,7 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2.11"
+PERL_CLEANER_VERSION="2.12"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
@@ -248,7 +248,7 @@ update_packages(){
 
         if ${LIBPERL} ; then
             # We assume the broken libs have all bin or lib in their path
-            broken_libs="$(scanelf -qBn < <(awk '/^(obj|sym) [^]*\/(s?bin|lib(32|64|x32)?)\// && ! /^obj [^ ]*\/usr\/lib\/debug\//{ print $2 }' ${content} ) | grep -o 'libperl\.so\.[0-9.]*' | sort -u )"
+            broken_libs="$(scanelf -qBn < <(awk '/^(obj|sym) [^ ]*\/(s?bin|lib(32|64|x32)?)\// && ! /^obj [^ ]*\/usr\/lib\/debug\//{ print $2 }' ${content} ) | grep -o 'libperl\.so\.[0-9.]*' | sort -u )"
             if [[ -n "${broken_libs}" ]] ; then
                 if ${FORCE} || [[ ${broken_libs} != ${SONAME} ]] ; then
                     PKGS_TO_REMERGE+=" ${CATPKGVER}"
