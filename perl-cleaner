@@ -465,7 +465,7 @@ while [[ -n "$1" ]] ; do
             ;;
         --)
             shift
-            ADDITIONAL_OPTIONS="${ADDITIONAL_OPTIONS} $*"
+            ADDITIONAL_OPTIONS="${ADDITIONAL_OPTIONS} $@"
             break
             ;;
         *)
