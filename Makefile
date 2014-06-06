@@ -13,12 +13,13 @@ perl-cleaner.1 : perl-cleaner $(MANINC)
 
 clean:
 	rm -fr perl-cleaner.1 *.bz2 $(PKGDIR) || true
-tarball:
+
+tarball: $(FILES)
 	mkdir $(PKGDIR)
 	cp $(FILES) $(PKGDIR)
 	tar cjf $(TARBALL) $(PKGDIR)
 	rm -fr $(PKGDIR)
+
 upload:
 	scp $(TARBALL) dev.gentoo.org:/space/distfiles-local
 	ssh dev.gentoo.org chmod ug+rw /space/distfiles-local/$(TARBALL)
-
