@@ -14,11 +14,11 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2.12"
+PERL_CLEANER_VERSION="2.13"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
-PMS_OPTIONS=( "-vD1" "-Do" "-x1z" )
+PMS_OPTIONS=( "-vD1 --backtrack=30" "-Do" "-x1z" )
 PMS_PRETEND=( "-p" "-p" "--no-execute" )
 CUSTOM_PMS_COMMAND=""
 
