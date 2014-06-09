@@ -14,7 +14,7 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2.13"
+PERL_CLEANER_VERSION="2.14"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
@@ -29,10 +29,15 @@ PKGS_MANUAL=""
 
 PKG_DBDIR=/var/db/pkg
 
-. /etc/init.d/functions.sh || {
-    echo "$0: Could not source /etc/init.d/functions.sh!"
+# See bug 504116 for details
+if [ -e /lib/gentoo/functions.sh ]; then
+    . /lib/gentoo/functions.sh
+elif [ -e /etc/init.d/functions.sh ]; then
+    . /etc/init.d/functions.sh
+else
+    echo "$0: Unable to find functions.sh"
     exit 1
-}
+fi
 
 # First and foremost - make sure we have a perl to work with...
 if ! type -P perl >/dev/null 2>&1 ; then
