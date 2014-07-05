@@ -14,7 +14,7 @@
 # version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
 # Version 1 - stuff
 
-PERL_CLEANER_VERSION="2.14"
+PERL_CLEANER_VERSION="2.15"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
@@ -198,11 +198,14 @@ update_packages(){
 #        fi
         # Replace SLOT by version number when REINSTALL_IDENTICAL_VERSIONS == 1
         # Reinstall identical versions when SLOT doesn't exist, bug #201848
+        # Strip subslot part of SLOT because that version may be gone by now, bug #516032
         if ${REINSTALL_IDENTICAL_VERSIONS} || [[ ! -f ${content/CONTENTS/SLOT} ]] ; then
                 CATPKGVER="=${CPV}"
         else
                 SLOT=$(< ${content/CONTENTS/SLOT})
-                CATPKGVER="${CATPKG}:${SLOT}"
+		MAINSLOT=${SLOT%/*}
+		[[ "${SLOT}" != "${MAINSLOT}" ]] && veinfo 5 "$CATPKG : reducing SLOT $SLOT to $MAINSLOT"
+                CATPKGVER="${CATPKG}:${MAINSLOT}"
         fi
 
 #        if [[ ${exception} = 2 ]] ; then
