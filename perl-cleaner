@@ -1,20 +1,9 @@
 #!/bin/bash
 # vim: set et sw=4 sts=4 tw=80:
-# Copyright 2005-2009 Gentoo Foundation
+# Copyright 2005-2014 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
-# Version 1.4
-#- patches from Wade Fitzpatrick for equery and fgrep suggestions (bug 125674),
-#- patches from Joerge Plate for grep being called with too many arguments (bug 114155)
-#- finally updated emerge syntax, brought up by nyhm (with some input from cab) in bug 128130.
-# Version 1.3
-# sort of a changelog if you want to call it that...
-# grep -E '/usr/lib*/perl5/' */*/CONTENTS > to make my list :)
-# version 1.2 - swtaylor gave some good pointers on making the tmp files, as well as reminding me of grep's -f functionality :)
-# version 1.1 - Mr. Bones gave a lot of good input on cleaning up the script
-# Version 1 - stuff
-
-PERL_CLEANER_VERSION="2.15"
+PERL_CLEANER_VERSION="2.16"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
@@ -306,6 +295,18 @@ update_packages(){
         if ! ${cmd} ; then
             veinfo 0 "perl-cleaner is stopping here:"
             veinfo 0 "Fix the problem and start perl-cleaner again."
+            veinfo 0 ""
+            if [[ ${PMS_COMMAND[${PMS_INDEX}]} == emerge ]] ; then
+                veinfo 0 "If you encounter blockers involving virtuals and perl-core, here are"
+                veinfo 0 "some things to try:"
+                veinfo 0 "  Remove all perl-core packages from your world file"
+                veinfo 0 "    emerge --deselect --ask \$(qlist -IC 'perl-core/*')"
+                veinfo 0 "  Update all the installed Perl virtuals"
+                veinfo 0 "    emerge -uD1a \$(qlist -IC 'virtual/perl-*')"
+                veinfo 0 "  Afterwards re-run perl-cleaner"
+                veinfo 0 ""
+                veinfo 0 "Note that upgrading Perl with emerge option --ignore-built-slot-operator-deps=y is not supported."
+            fi
             exit 1
         fi
     else
