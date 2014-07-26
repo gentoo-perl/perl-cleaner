@@ -23,3 +23,7 @@ tarball: $(FILES)
 upload:
 	scp $(TARBALL) dev.gentoo.org:/space/distfiles-local
 	ssh dev.gentoo.org chmod ugo+r /space/distfiles-local/$(TARBALL)
+
+upload-home:
+	scp $(TARBALL) dev.gentoo.org:~/public_html/distfiles/
+	ssh dev.gentoo.org chmod ugo+r public_html/distfiles/$(TARBALL)
