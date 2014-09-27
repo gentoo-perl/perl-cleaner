@@ -3,12 +3,18 @@
 # Copyright 2005-2014 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
-PERL_CLEANER_VERSION="2.16"
+PERL_CLEANER_VERSION="2.17"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
 PMS_OPTIONS=( "-vD1 --backtrack=30" "-Do" "-x1z" )
 PMS_PRETEND=( "-p" "-p" "--no-execute" )
+
+PMS_INSTALLED_COMMAND=( "qlist -IC" "" "" )
+PMS_DESELECT_COMMAND=( "emerge --deselect" "" "" )
+PMS_SELECT_COMMAND=( "emerge --noreplace" "" "" )
+PMS_UPGRADE_COMMAND=( "emerge -uD1" "" "" )
+
 CUSTOM_PMS_COMMAND=""
 
 PKGS_TO_REMERGE=""
@@ -70,6 +76,80 @@ outdated_path(){
     eoutdent && eoutdent
     return 1
 }
+
+
+# this function removes all perl-core/* entries from your world file
+# you should use virtual/perl-* there instead
+deselect_perlcore() {
+    if [[ ${PMS_COMMAND[${PMS_INDEX}]} == emerge ]] ; then
+
+        local perlcorelist
+	local perlcorelistoneline
+	perlcorelist=$( ${PMS_INSTALLED_COMMAND[${PMS_INDEX}]} 'perl-core/*' )
+	perlcorelistoneline=$(echo ${perlcorelist} | tr '\n' ' ' )
+
+	veinfo 2 "Installed perl-core packages: ${perlcorelistoneline}"
+	if [[ ${perlcorelist} == "" ]] ; then
+		veinfo 2 "No perl-core packages installed. Nothing to deselect."
+	else
+	    if ${PRETEND} ; then
+		veinfo 0 "Would try to remove the following perl-core packages from world file"
+		veinfo 0 "   ${PMS_DESELECT_COMMAND[${PMS_INDEX}]} ${perlcorelistoneline}"
+	    else
+		veinfo 0 "Removing perl-core packages from world file"
+		veinfo 0 "   ${PMS_DESELECT_COMMAND[${PMS_INDEX}]} ${perlcorelistoneline}"
+		${PMS_DESELECT_COMMAND[${PMS_INDEX}]} ${perlcorelistoneline}
+	    fi
+	fi
+    else
+        vecho 0
+        veinfo 0 "You should deselect all perl-core packages in your configuration before running"
+        veinfo 0 "perl-cleaner. They must only be installed as dependency of Perl virtuals."
+        veinfo 0 "This is done automatically for portage, but not implemented yet"
+        veinfo 0 "for paludis and pkgcore. If perl-cleaner fails - you've been warned."
+        vecho 0
+    fi
+}
+
+# this function updates all Perl virtuals (deep)
+update_virtuals() {
+    if [[ ${PMS_COMMAND[${PMS_INDEX}]} == emerge ]] ; then
+
+        local perlvirtuallist
+	local perlvirtuallistoneline
+	perlvirtuallist=$( ${PMS_INSTALLED_COMMAND[${PMS_INDEX}]} 'virtual/perl-*' )
+	perlvirtuallistoneline=$(echo ${perlvirtuallist} | tr '\n' ' ' )
+
+	veinfo 2 "Installed Perl virtuals: ${perlvirtuallistoneline}"
+	if [[ ${perlvirtuallist} == "" ]] ; then
+		veinfo 2 "No Perl virtuals installed. Nothing to update."
+	else
+	    if ${PRETEND} ; then
+		veinfo 0 "Would try to update installed Perl virtuals"
+		veinfo 0 "   ${PMS_UPGRADE_COMMAND[${PMS_INDEX}]} ${perlvirtuallistoneline}"
+	    else
+		veinfo 0 "Updating installed Perl virtuals"
+		veinfo 0 "   ${PMS_UPGRADE_COMMAND[${PMS_INDEX}]} ${perlvirtuallistoneline}"
+		${PMS_UPGRADE_COMMAND[${PMS_INDEX}]} ${perlvirtuallistoneline}
+            fi
+	fi
+    else
+        vecho 0
+        veinfo 0 "You should update all the Perl virtuals and their dependencies before running"
+        veinfo 0 "perl-cleaner. This is done automatically for portage, but not implemented yet"
+        veinfo 0 "for paludis and pkgcore. If perl-cleaner fails - you've been warned."
+        vecho 0
+    fi
+}
+
+
+
+preclean() {
+    deselect_perlcore
+    update_virtuals
+}
+
+
 
 # This is to clean out the old .ph files generated in our last perl install
 ph_clean() {
@@ -297,13 +377,6 @@ update_packages(){
             veinfo 0 "Fix the problem and start perl-cleaner again."
             veinfo 0 ""
             if [[ ${PMS_COMMAND[${PMS_INDEX}]} == emerge ]] ; then
-                veinfo 0 "If you encounter blockers involving virtuals and perl-core, here are"
-                veinfo 0 "some things to try:"
-                veinfo 0 "  Remove all perl-core packages from your world file"
-                veinfo 0 "    emerge --deselect --ask \$(qlist -IC 'perl-core/*')"
-                veinfo 0 "  Update all the installed Perl virtuals"
-                veinfo 0 "    emerge -uD1a \$(qlist -IC 'virtual/perl-*')"
-                veinfo 0 "  Afterwards re-run perl-cleaner"
                 veinfo 0 ""
                 veinfo 0 "Note that upgrading Perl with emerge option --ignore-built-slot-operator-deps=y is not supported."
             fi
@@ -378,6 +451,7 @@ fi
 ADDITIONAL_OPTIONS=""
 REINSTALL_IDENTICAL_VERSIONS=false
 ASK=false
+PRECLEAN=false
 MODULES=false
 LIBPERL=false
 PHCLEAN=false
@@ -456,6 +530,7 @@ while [[ -n "$1" ]] ; do
             PHUPDATE=true
             ;;
         --all|all)
+            PRECLEAN=true
             MODULES=true
             LIBPERL=true
             PHCLEAN=true
@@ -463,6 +538,7 @@ while [[ -n "$1" ]] ; do
             LEFTOVERS=true
             ;;
         --reallyall|reallyall)
+            PRECLEAN=true
             MODULES=true
             LIBPERL=true
             PHCLEAN=true
@@ -505,9 +581,13 @@ veinfo 3 "vendorarchexp path: ${vendorarchexp}"
 veinfo 3 "vendorlibexp path: ${vendorlibexp}"
 
 ${FORCE} && version="0.0.0" && gversion="0\.0\.0"
+
+${PRECLEAN} && preclean
+
 ${PHCLEAN} && ph_clean
 ${PHUPDATE} && ph_update
 (${MODULES} || ${LIBPERL}) && update_packages
+
 ${LEFTOVERS} && leftovers
 
 exit 0
