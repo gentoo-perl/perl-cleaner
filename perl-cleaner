@@ -3,7 +3,7 @@
 # Copyright 2005-2014 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
-PERL_CLEANER_VERSION="2.17"
+PERL_CLEANER_VERSION="2.18"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
@@ -94,11 +94,11 @@ deselect_perlcore() {
 	else
 	    if ${PRETEND} ; then
 		veinfo 0 "Would try to remove the following perl-core packages from world file"
-		veinfo 0 "   ${PMS_DESELECT_COMMAND[${PMS_INDEX}]} ${perlcorelistoneline}"
+		veinfo 0 "   ${PMS_DESELECT_COMMAND[${PMS_INDEX}]} ${ADDITIONAL_OPTIONS} ${perlcorelistoneline}"
 	    else
 		veinfo 0 "Removing perl-core packages from world file"
-		veinfo 0 "   ${PMS_DESELECT_COMMAND[${PMS_INDEX}]} ${perlcorelistoneline}"
-		${PMS_DESELECT_COMMAND[${PMS_INDEX}]} ${perlcorelistoneline}
+		veinfo 0 "   ${PMS_DESELECT_COMMAND[${PMS_INDEX}]} ${ADDITIONAL_OPTIONS} ${perlcorelistoneline}"
+		${PMS_DESELECT_COMMAND[${PMS_INDEX}]} ${ADDITIONAL_OPTIONS} ${perlcorelistoneline}
 	    fi
 	fi
     else
@@ -126,11 +126,11 @@ update_virtuals() {
 	else
 	    if ${PRETEND} ; then
 		veinfo 0 "Would try to update installed Perl virtuals"
-		veinfo 0 "   ${PMS_UPGRADE_COMMAND[${PMS_INDEX}]} ${perlvirtuallistoneline}"
+		veinfo 0 "   ${PMS_UPGRADE_COMMAND[${PMS_INDEX}]} ${ADDITIONAL_OPTIONS} ${perlvirtuallistoneline}"
 	    else
 		veinfo 0 "Updating installed Perl virtuals"
-		veinfo 0 "   ${PMS_UPGRADE_COMMAND[${PMS_INDEX}]} ${perlvirtuallistoneline}"
-		${PMS_UPGRADE_COMMAND[${PMS_INDEX}]} ${perlvirtuallistoneline}
+		veinfo 0 "   ${PMS_UPGRADE_COMMAND[${PMS_INDEX}]} ${ADDITIONAL_OPTIONS} ${perlvirtuallistoneline}"
+		${PMS_UPGRADE_COMMAND[${PMS_INDEX}]} ${ADDITIONAL_OPTIONS} ${perlvirtuallistoneline}
             fi
 	fi
     else
@@ -439,9 +439,22 @@ else
     echo
 fi
 done )
-  -- OPTIONS     Pass additional options to package manager
+  -- OPTIONS     Pass additional options to package manager (not recommended)
 EOF_USAGE
 exit 0
+}
+
+options_warning() {
+    cat << EOF_WARNING
+
+***************************************************************************
+You are supplying additional command line options for the package manager.
+This is NOT RECOMMENDED, not tested, and may lead to incorrect, incomplete,
+confusing, and/or nonfunctional results. You are on your own now.
+***************************************************************************
+
+
+EOF_WARNING
 }
 
 if [[ -z "$1" ]] ; then
@@ -561,6 +574,10 @@ while [[ -n "$1" ]] ; do
     esac
     shift
 done
+
+if [[ ! -z "${ADDITIONAL_OPTIONS}" ]] ; then
+    options_warning
+fi
 
 # version=
 eval $(perl -V:version )
