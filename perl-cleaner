@@ -3,17 +3,17 @@
 # Copyright 2005-2014 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
-PERL_CLEANER_VERSION="2.18"
+PERL_CLEANER_VERSION="2.19"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
-PMS_OPTIONS=( "-vD1 --backtrack=30" "-Do" "-x1z" )
+PMS_OPTIONS=( "-v1 --backtrack=100" "-Do" "-x1z" )
 PMS_PRETEND=( "-p" "-p" "--no-execute" )
 
 PMS_INSTALLED_COMMAND=( "qlist -IC" "" "" )
 PMS_DESELECT_COMMAND=( "emerge --deselect" "" "" )
 PMS_SELECT_COMMAND=( "emerge --noreplace" "" "" )
-PMS_UPGRADE_COMMAND=( "emerge -uD1" "" "" )
+PMS_UPGRADE_COMMAND=( "emerge -u1" "" "" )
 
 CUSTOM_PMS_COMMAND=""
 
