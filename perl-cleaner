@@ -3,11 +3,11 @@
 # Copyright 2005-2014 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
-PERL_CLEANER_VERSION="2.19"
+PERL_CLEANER_VERSION="2.20"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
-PMS_OPTIONS=( "-v1 --backtrack=100" "-Do" "-x1z" )
+PMS_OPTIONS=( "-v1 --backtrack=200" "-Do" "-x1z" )
 PMS_PRETEND=( "-p" "-p" "--no-execute" )
 
 PMS_INSTALLED_COMMAND=( "qlist -IC" "" "" )
@@ -359,6 +359,15 @@ update_packages(){
             fi
             exit 1
         fi
+        veinfo 0 ""
+        veinfo 0 "It seems like perl-cleaner had to rebuild some packages."
+        veinfo 0 ""
+        veinfo 0 "If you have just updated your major Perl version (e.g. from 5.20.2 to 5.22.0),"
+        veinfo 0 "and have run perl-cleaner _after_ that update, then this means most likely"
+        veinfo 0 "that these packages are buggy. Please file a bug on http://bugs.gentoo.org/ and"
+        veinfo 0 "report that perl-cleaner needed to reinstall the following list:"
+        veinfo 0 "  ${PKGS_TO_REMERGE}"
+        veinfo 0 ""
     else
         veinfo 1 "No package needs to be reinstalled."
     fi
