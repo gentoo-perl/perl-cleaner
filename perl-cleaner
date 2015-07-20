@@ -13,7 +13,7 @@ PMS_PRETEND=( "-p" "-p" "--no-execute" )
 PMS_INSTALLED_COMMAND=( "qlist -IC" "" "cave print-packages --repository installed" )
 PMS_DESELECT_COMMAND=( "emerge --deselect" "" "cave update-world --remove" )
 PMS_SELECT_COMMAND=( "emerge --noreplace" "" "cave update-world" )
-PMS_UPGRADE_COMMAND=( "emerge -u1" "" "cave resolve -x1z" )
+PMS_UPGRADE_COMMAND=( "emerge -u1" "" "cave resolve -x1zU perl-core/*" )
 
 CUSTOM_PMS_COMMAND=""
 
