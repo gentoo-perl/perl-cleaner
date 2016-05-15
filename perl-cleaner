@@ -3,7 +3,7 @@
 # Copyright 2005-2014 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
-PERL_CLEANER_VERSION="2.20"
+PERL_CLEANER_VERSION="2.21"
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
@@ -170,43 +170,6 @@ ph_clean() {
         find "${i}" -depth -type d 2>/dev/null | grep -v "${gversion}" | xargs -r rmdir 2>/dev/null
     done
     eoutdent
-}
-
-# Generate ph files; this is useful if we've upgraded packages with headers so that perl knows the new info
-ph_update() {
-    local option dir
-    [[ VERBOSE -le 1 ]] && option="-Q"
-    vecho 1
-    veinfo 1 "Updating ph files."
-    veinfo 1 "Ignore all \"No such file...\" messages!"
-    if ${PRETEND} ; then
-        veinfo 1 "Pretend. Nothing to do."
-        return
-    fi
-    pushd /usr/include > /dev/null
-    if [[ ${version} =~ ^5.(8|10) ]] ; then
-        eindent
-        veinfo 2 "...in /usr/include"
-        h2ph ${option} * 2>/dev/null
-        for dir in sys arpa netinet bits security asm gnu linux ; do
-            veinfo 2 "...in /usr/include/$dir/"
-            h2ph ${option} -r $dir/*
-        done
-        eoutdent
-    else
-        h2ph ${option} -a -d ${archlibexp} \
-            asm/termios.h \
-            syscall.h     \
-            syslimits.h   \
-            syslog.h      \
-            sys/ioctl.h   \
-            sys/socket.h  \
-            sys/time.h    \
-            wait.h        \
-            sysexits.h
-    fi
-    popd > /dev/null
-
 }
 
 update_packages(){
@@ -410,8 +373,7 @@ Options:
   --allmodules   Rebuild all perl modules
   --libperl      Rebuild anything linked against libperl
   --ph-clean     Clean out old ph files from a previous perl
-  --phupdate     Update existing ph files, useful after an upgrade to system parts like the kernel
-  --phall        Short for --ph-clean --phupdate
+  --phall        Short for --ph-clean
   --all          Short for --modules --libperl --phall
   --reallyall    Short for --allmodules --libperl --phall
   --leftovers    Shows all files that were not rebuilt
@@ -454,7 +416,6 @@ PRECLEAN=false
 MODULES=false
 LIBPERL=false
 PHCLEAN=false
-PHUPDATE=false
 FORCE=false
 LEFTOVERS=false
 PRETEND=false
@@ -521,19 +482,14 @@ while [[ -n "$1" ]] ; do
         --ph-clean|ph-clean)
             PHCLEAN=true
             ;;
-        --phupdate|phupdate)
-            PHUPDATE=true
-            ;;
         --phall|phall)
             PHCLEAN=true
-            PHUPDATE=true
             ;;
         --all|all)
             PRECLEAN=true
             MODULES=true
             LIBPERL=true
             PHCLEAN=true
-            PHUPDATE=true
             LEFTOVERS=true
             ;;
         --reallyall|reallyall)
@@ -541,7 +497,6 @@ while [[ -n "$1" ]] ; do
             MODULES=true
             LIBPERL=true
             PHCLEAN=true
-            PHUPDATE=true
             FORCE=true
             ;;
         --force|force)
@@ -588,7 +543,7 @@ ${FORCE} && version="0.0.0" && gversion="0\.0\.0"
 ${PRECLEAN} && preclean
 
 ${PHCLEAN} && ph_clean
-${PHUPDATE} && ph_update
+
 (${MODULES} || ${LIBPERL}) && update_packages
 
 ${LEFTOVERS} && leftovers
