@@ -6,11 +6,16 @@ Distributed under the terms of the GNU General Public License v2
 Submit bug reports to https://bugs.gentoo.org/
 
 [AUTHORS]
+
 Michael Cummings <mcummings@gentoo.org>
+
 Torsten Veller <tove@gentoo.org>
+
 Michael Sterrett [contributor] <mr_bones_@gentoo.org>
+
 Scott Taylor [contributor] <swtaylor@gentoo.org>
-Andreas K. Hüttel <dilfridge@gentoo.org>
+
+Andreas K. Huettel <dilfridge@gentoo.org>
 
 Version 2 based on ideas from python-updater.
 
