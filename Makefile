@@ -1,5 +1,5 @@
 MANINC = man.include
-VERSION=$(shell ./perl-cleaner --version)
+VERSION=$(shell grep "PERL_CLEANER_VERSION=" ./perl-cleaner | sed -e 's:^PERL_CLEANER_VERSION=::' )
 FILES=perl-cleaner perl-cleaner.1
 PKGDIR=perl-cleaner-$(VERSION)
 TARBALL=$(PKGDIR).tar.bz2
@@ -9,10 +9,13 @@ TARBALL=$(PKGDIR).tar.bz2
 all: perl-cleaner.1 tarball
 
 perl-cleaner.1 : perl-cleaner $(MANINC)
+	cp -a perl-cleaner perl-cleaner-saved
+	sed -i -e 's:@GENTOO_PORTAGE_EPREFIX@::g' perl-cleaner
 	help2man ./perl-cleaner --no-info --include $(MANINC) -o $@
+	mv perl-cleaner-saved perl-cleaner
 
 clean:
-	rm -fr perl-cleaner.1 *.bz2 $(PKGDIR) || true
+	rm -fr perl-cleaner.1 *.bz2 $(PKGDIR) perl-cleaner-saved || true
 
 tarball: $(FILES)
 	mkdir $(PKGDIR)
