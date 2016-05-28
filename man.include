@@ -1,5 +1,5 @@
 [COPYRIGHT]
-Copyright \(co 2005-2014 Gentoo Foundation,
+Copyright \(co 2005-2016 Gentoo Foundation,
 Distributed under the terms of the GNU General Public License v2
 
 [REPORTING BUGS]
@@ -7,12 +7,10 @@ Submit bug reports to https://bugs.gentoo.org/
 
 [AUTHORS]
 Michael Cummings <mcummings@gentoo.org>
-
 Torsten Veller <tove@gentoo.org>
-
 Michael Sterrett [contributor] <mr_bones_@gentoo.org>
-
 Scott Taylor [contributor] <swtaylor@gentoo.org>
+Andreas K. Hüttel <dilfridge@gentoo.org>
 
 Version 2 based on ideas from python-updater.
 
