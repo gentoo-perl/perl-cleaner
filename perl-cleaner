@@ -7,7 +7,7 @@ PERL_CLEANER_VERSION=2.22
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
-PMS_OPTIONS=( "-v1 --backtrack=200" "-Do" "-x1z" )
+PMS_OPTIONS=( "-v1 --backtrack=200" "-D1" "-x1z" )
 PMS_PRETEND=( "-p" "-p" "--no-execute" )
 
 PMS_INSTALLED_COMMAND=( "qlist -IC" "" "" )
