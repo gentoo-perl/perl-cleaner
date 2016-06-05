@@ -445,21 +445,6 @@ while [[ -n "$1" ]] ; do
         -P|--package-manager)
             shift
             PACKAGE_MANAGER="$1"
-            case "${PACKAGE_MANAGER}" in
-                portage|pkgcore|paludis)
-                    ;;
-                *)
-                    echo "unrecognised package manager selected. please select between ${SUPPORTED_PMS}"
-                    exit
-                    ;;
-            esac
-
-            # PMS_INDEX is used to select the right commands and options for the selected package manager
-            PMS_INDEX=0
-            for PM in ${SUPPORTED_PMS} ; do
-                [[ ${PM} == ${PACKAGE_MANAGER} ]] && break
-                PMS_INDEX=$((${PMS_INDEX} + 1))
-            done
             ;;
         --package-manager-command)
             shift
@@ -517,6 +502,25 @@ while [[ -n "$1" ]] ; do
             ;;
     esac
     shift
+done
+
+# set portage as default if no PM is given
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-portage}
+
+case "${PACKAGE_MANAGER}" in
+    portage|pkgcore|paludis)
+        ;;
+    *)
+        echo "unrecognised package manager selected. please select between ${SUPPORTED_PMS}"
+        exit
+        ;;
+esac
+
+# PMS_INDEX is used to select the right commands and options for the selected package manager
+PMS_INDEX=0
+for PM in ${SUPPORTED_PMS} ; do
+    [[ ${PM} == ${PACKAGE_MANAGER} ]] && break
+    PMS_INDEX=$((${PMS_INDEX} + 1))
 done
 
 if [[ ! -z "${ADDITIONAL_OPTIONS}" ]] ; then
