@@ -341,23 +341,35 @@ update_packages(){
 
 # Assuming a successful module run, look to see whats left over
 leftovers() {
-    local path i perlpath=()
-    vecho 1
-    veinfo 1 "Finding left over modules and header"
+    local path file i perlpath=() outdated_files=()
+
+    for i in "@GENTOO_PORTAGE_EPREFIX@"/usr/{share,lib{,32,64,x32}}/perl5 ; do
+        [[ -d $i ]] && perlpath[${#perlpath[*]}]="$(realpath $i 2>/dev/null )"
+    done
+
+    [[ ${#perlpath[*]} == 0 ]] && return
+
+    while IFS= read -r -d $'\0' file ; do
+        outdated_files=("${outdated_files[@]}" "$file")
+    done < <(
+        # print out all the leftover files
+        while IFS= read -r -d $'\0' path ; do
+            if outdated_path "${path}/" ; then
+                find "${path}" -type f -print0
+            fi
+        done <  <( find $( for (( i=0 ; i < ${#perlpath[*]} ; i++ )) do echo ${perlpath[$i]} ; done | sort -u ) -mindepth 2 -maxdepth 2 -type d -print0 2>/dev/null )
+    )
+
+    [[ ${#outdated_files[*]} == 0 ]] && return
+
     vecho 1
     veinfo 1 "The following files remain. These were either installed by hand"
     veinfo 1 "or edited. This script cannot deal with them."
     vecho 1
 
-    for i in "@GENTOO_PORTAGE_EPREFIX@"/usr/{share,lib{,32,64,x32}}/perl5 ; do
-        [[ -d $i ]] && perlpath[${#perlpath[*]}]="$(realpath $i 2>/dev/null )"
+    for file in "${outdated_files[@]}" ; do
+        veinfo 1 "    $file"
     done
-    [[ ${#perlpath[*]} == 0 ]] && return
-    while IFS= read -r -d $'\0' path ; do
-        if outdated_path "${path}/" ; then
-            find "${path}" -type f
-        fi
-    done <  <( find $( for (( i=0 ; i < ${#perlpath[*]} ; i++ )) do echo ${perlpath[$i]} ; done | sort -u ) -mindepth 2 -maxdepth 2 -type d -print0 2>/dev/null )
 }
 
 usage() {
