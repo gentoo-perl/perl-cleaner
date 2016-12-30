@@ -415,6 +415,7 @@ Options:
   --all          Short for --modules --libperl --phall
   --reallyall    Short for --allmodules --libperl --phall
   --leftovers    Shows all files that were not rebuilt
+  --delete-leftovers Deletes known, typical leftover files
   -P PM, --package-manager PM
                  Use package manager PM, where PM can be one of:
 $(for p in ${SUPPORTED_PMS} ; do
@@ -456,6 +457,7 @@ LIBPERL=false
 PHCLEAN=false
 FORCE=false
 LEFTOVERS=false
+DELETELEFTOVERS=false
 PRETEND=false
 VERBOSE=1
 
@@ -491,6 +493,9 @@ while [[ -n "$1" ]] ; do
         --leftovers|leftovers)
             LEFTOVERS=true
             ;;
+        --delete-leftovers|delete-leftovers)
+            DELETELEFTOVERS=true
+            ;;
         --modules|modules)
             MODULES=true
 #           LEFTOVERS=true
@@ -520,6 +525,7 @@ while [[ -n "$1" ]] ; do
             MODULES=true
             LIBPERL=true
             PHCLEAN=true
+            LEFTOVERS=true
             FORCE=true
             ;;
         --force|force)
@@ -588,6 +594,6 @@ ${PHCLEAN} && ph_clean
 
 (${MODULES} || ${LIBPERL}) && update_packages
 
-${LEFTOVERS} && leftovers
+(${LEFTOVERS} || ${DELETELEFTOVERS}) && leftovers
 
 exit 0
