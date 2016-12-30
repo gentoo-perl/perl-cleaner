@@ -24,6 +24,29 @@ PKGS_MANUAL=""
 
 PKG_DBDIR="@GENTOO_PORTAGE_EPREFIX@/var/db/pkg"
 
+KNOWN_LEFTOVERS=(
+    XML/SAX/ParserDetails.ini _h2ph_pre.ph asm-generic/bitsperlong.ph
+    asm-generic/ioctl.ph asm-generic/ioctls.ph asm-generic/posix_types.ph
+    asm-generic/socket.ph asm-generic/sockios.ph asm-generic/termbits.ph
+    asm-generic/termios.ph asm/bitsperlong.ph asm/ioctl.ph asm/ioctls.ph
+    asm/posix_types.ph asm/posix_types_32.ph asm/posix_types_64.ph
+    asm/posix_types_x32.ph asm/socket.ph asm/sockios.ph asm/termbits.ph
+    asm/termios.ph asm/unistd.ph asm/unistd_32.ph asm/unistd_64.ph asm/unistd_x32.ph
+    bits/byteswap-16.ph bits/byteswap.ph bits/endian.ph bits/ioctl-types.ph
+    bits/ioctls.ph bits/pthreadtypes.ph bits/select.ph bits/select2.ph
+    bits/sigaction.ph bits/sigcontext.ph bits/siginfo.ph bits/signum.ph
+    bits/sigset.ph bits/sigstack.ph bits/sigthread.ph bits/sockaddr.ph
+    bits/socket.ph bits/socket2.ph bits/socket_type.ph bits/syscall.ph
+    bits/syslog-ldbl.ph bits/syslog-path.ph bits/syslog.ph bits/time.ph
+    bits/timex.ph bits/types.ph bits/typesizes.ph bits/uio.ph bits/waitflags.ph
+    bits/waitstatus.ph bits/wordsize.ph endian.ph features.ph gnu/stubs-32.ph
+    gnu/stubs-64.ph gnu/stubs.ph ioctl.ph posix_types.ph signal.ph stdarg.ph
+    stdc-predef.ph stddef.ph sys/cdefs.ph sys/ioctl.ph sys/select.ph sys/socket.ph
+    sys/syscall.ph sys/syslog.ph sys/sysmacros.ph sys/time.ph sys/ttydefaults.ph
+    sys/types.ph sys/ucontext.ph sys/uio.ph sys/wait.ph syscall.ph sysexits.ph
+    syslimits.ph syslog.ph time.ph wait.ph xlocale.ph
+)
+
 # See bug 504116 for details
 if [ -e "@GENTOO_PORTAGE_EPREFIX@/lib/gentoo/functions.sh" ]; then
     . "@GENTOO_PORTAGE_EPREFIX@/lib/gentoo/functions.sh"
