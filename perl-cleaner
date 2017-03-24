@@ -368,7 +368,7 @@ hasr() {
 
         local x
         for x in "$@"; do
-                [ "${filename}" = *"${x}" ] && return 0
+                [[ "${filename/%${x}/}" != "${filename}" ]] && return 0
         done
         return 1
 }
@@ -405,10 +405,10 @@ leftovers() {
     for file in "${outdated_files[@]}" ; do
         if hasr "$file" "${KNOWN_LEFTOVERS[@]}" ; then
             if ${DELETELEFTOVERS} ; then
-                veinfo 1 "    $file  --- known, deleted"
+                veinfo 1 "    $file  : known, deleted"
                 rm "$file"
 	    else
-                veinfo 1 "    $file  --- known, can be deleted"
+                veinfo 1 "    $file  : known, can be deleted"
 	    fi
         else
             veinfo 1 "    $file"
