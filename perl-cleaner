@@ -3,7 +3,7 @@
 # Copyright 2005-2016 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
-PERL_CLEANER_VERSION=2.23
+PERL_CLEANER_VERSION=2.24
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
@@ -362,6 +362,18 @@ update_packages(){
     fi
 }
 
+hasr() {
+        local filename=$1
+        shift
+
+        local x
+        for x in "$@"; do
+                [ "${filename}" = *"${x}" ] && return 0
+        done
+        return 1
+}
+
+
 # Assuming a successful module run, look to see whats left over
 leftovers() {
     local path file i perlpath=() outdated_files=()
@@ -387,11 +399,15 @@ leftovers() {
 
     vecho 1
     veinfo 1 "The following files remain. These were either installed by hand"
-    veinfo 1 "or edited. This script cannot deal with them."
+    veinfo 1 "or edited."
     vecho 1
 
     for file in "${outdated_files[@]}" ; do
-        veinfo 1 "    $file"
+        if hasr "$file" "${KNOWN_LEFTOVERS[@]}" ; then
+            veinfo 1 "    $file  --- known, can be deleted"
+        else
+            veinfo 1 "    $file"
+        fi
     done
 }
 
