@@ -404,7 +404,12 @@ leftovers() {
 
     for file in "${outdated_files[@]}" ; do
         if hasr "$file" "${KNOWN_LEFTOVERS[@]}" ; then
-            veinfo 1 "    $file  --- known, can be deleted"
+            if ${DELETELEFTOVERS} ; then
+                veinfo 1 "    $file  --- known, deleted"
+                rm "$file"
+	    else
+                veinfo 1 "    $file  --- known, can be deleted"
+	    fi
         else
             veinfo 1 "    $file"
         fi
@@ -418,22 +423,21 @@ ${0##*/} -- Find & rebuild packages and Perl header files broken due to a perl u
 Usage: $0 [OPTION]
 
 Options:
-  -h, --help     Print usage
-  -V, --version  Print version
-  -p, --pretend  Pretend (don't do anything)
-  -v, --verbose  Increase verbosity (may be specified multiple times)
-  -q, --quiet    Decrease verbosity
-  --modules      Rebuild perl modules for old installs of perl
-  --allmodules   Rebuild all perl modules
-  --libperl      Rebuild anything linked against libperl
-  --ph-clean     Clean out old ph files from a previous perl
-  --phall        Short for --ph-clean
-  --all          Short for --modules --libperl --phall
-  --reallyall    Short for --allmodules --libperl --phall
-  --leftovers    Shows all files that were not rebuilt
+  -h, --help         Print usage
+  -V, --version      Print version
+  -p, --pretend      Pretend (don't do anything)
+  -v, --verbose      Increase verbosity (may be specified multiple times)
+  -q, --quiet        Decrease verbosity
+  --modules          Rebuild perl modules for old installs of perl
+  --allmodules       Rebuild all perl modules
+  --libperl          Rebuild anything linked against libperl
+  --ph-clean         Clean out old ph files from a previous perl
+  --all              Short for --modules --libperl --ph-clean
+  --reallyall        Short for --allmodules --libperl --ph-clean
+  --leftovers        Shows all files that were not rebuilt
   --delete-leftovers Deletes known, typical leftover files
   -P PM, --package-manager PM
-                 Use package manager PM, where PM can be one of:
+                     Use package manager PM, where PM can be one of:
 $(for p in ${SUPPORTED_PMS} ; do
 echo -ne $'\t\t  '\* ${p}
 if [[ ${p} == portage ]] ; then
@@ -442,7 +446,7 @@ else
     echo
 fi
 done )
-  -- OPTIONS     Pass additional options to package manager (not recommended)
+  -- OPTIONS         Pass additional options to package manager (not recommended)
 EOF_USAGE
 exit 0
 }
@@ -514,7 +518,6 @@ while [[ -n "$1" ]] ; do
             ;;
         --modules|modules)
             MODULES=true
-#           LEFTOVERS=true
             ;;
         --allmodules|allmodules)
             MODULES=true
