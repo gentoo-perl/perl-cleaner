@@ -3,7 +3,7 @@
 # Copyright 2005-2016 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
-PERL_CLEANER_VERSION=2.24
+PERL_CLEANER_VERSION=2.25
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
@@ -51,6 +51,7 @@ KNOWN_REBUILDS=(
     perl-core/ virtual/perl- dev-perl/
     sys-apps/texinfo  # bug 585048
     www-client/elinks app-admin/stow dev-vcs/git net-fs/samba net-analyzer/nagios-core app-text/po4a # bug 593788
+    media-gfx/graphviz # bug 613838
 )
 
 # See bug 504116 for details
