@@ -47,6 +47,12 @@ KNOWN_LEFTOVERS=(
     syslimits.ph syslog.ph time.ph wait.ph xlocale.ph
 )
 
+KNOWN_REBUILDS=(
+    perl-core/ virtual/perl- dev-perl/
+    sys-apps/texinfo  # bug 585048
+    www-client/elinks app-admin/stow dev-vcs/git net-fs/samba net-analyzer/nagios-core app-text/po4a # bug 593788
+)
+
 # See bug 504116 for details
 if [ -e "@GENTOO_PORTAGE_EPREFIX@/lib/gentoo/functions.sh" ]; then
     . "@GENTOO_PORTAGE_EPREFIX@/lib/gentoo/functions.sh"
@@ -351,12 +357,23 @@ update_packages(){
         veinfo 0 ""
         veinfo 0 "It seems like perl-cleaner had to rebuild some packages."
         veinfo 0 ""
-        veinfo 0 "If you have just updated your major Perl version (e.g. from 5.20.2 to 5.22.0),"
-        veinfo 0 "and have run perl-cleaner _after_ that update, then this means most likely"
-        veinfo 0 "that these packages are buggy. Please file a bug on http://bugs.gentoo.org/ and"
-        veinfo 0 "report that perl-cleaner needed to reinstall the following list:"
-        veinfo 0 "  ${PKGS_TO_REMERGE}"
-        veinfo 0 ""
+
+        IFS=' ' read -r -a PKGSARRAYRAW <<< "${PKGS_TO_REMERGE}"
+        # now filter out all that we do know about
+        PKGS_BUGLIST=""
+        for pkr in "${PKGSARRAYRAW[@]}" ; do
+           hasl "${pkr}" "${KNOWN_REBUILDS[@]}" || PKGS_BUGLIST+="${pkr} "
+        done
+
+        if [[ -n ${PKGS_BUGLIST} ]] ; then
+            veinfo 0 "If you have just updated your major Perl version (e.g. from 5.20.2 to 5.22.0),"
+            veinfo 0 "and have run perl-cleaner _after_ that update, then this means most likely"
+            veinfo 0 "that these packages are buggy. Please file a bug on http://bugs.gentoo.org/ and"
+            veinfo 0 "report that perl-cleaner needed to reinstall the following list:"
+            veinfo 0 "  ${PKGS_BUGLIST}"
+            veinfo 0 ""
+            veinfo 0 "(Known problems have already been filtered from that list.)"
+	fi
     else
         veinfo 1 "No package needs to be reinstalled."
     fi
@@ -369,6 +386,17 @@ hasr() {
         local x
         for x in "$@"; do
                 [[ "${filename/%${x}/}" != "${filename}" ]] && return 0
+        done
+        return 1
+}
+
+hasl() {
+        local filename=$1
+        shift
+
+        local x
+        for x in "$@"; do
+                [[ "${filename/#${x}/}" != "${filename}" ]] && return 0
         done
         return 1
 }
