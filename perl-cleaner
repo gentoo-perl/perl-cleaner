@@ -52,6 +52,7 @@ KNOWN_REBUILDS=(
     sys-apps/texinfo  # bug 585048
     www-client/elinks app-admin/stow dev-vcs/git net-fs/samba net-analyzer/nagios-core app-text/po4a # bug 593788
     media-gfx/graphviz # bug 613838
+    app-editors/vim net-irc/irssi # bug 614194
 )
 
 # See bug 504116 for details
