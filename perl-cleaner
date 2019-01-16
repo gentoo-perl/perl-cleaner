@@ -45,6 +45,7 @@ KNOWN_LEFTOVERS=(
     sys/syscall.ph sys/syslog.ph sys/sysmacros.ph sys/time.ph sys/ttydefaults.ph
     sys/types.ph sys/ucontext.ph sys/uio.ph sys/wait.ph syscall.ph sysexits.ph
     syslimits.ph syslog.ph time.ph wait.ph xlocale.ph
+    PDL/Index.pod PDL/pdldoc.db
 )
 
 KNOWN_REBUILDS=(
