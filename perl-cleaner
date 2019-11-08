@@ -179,31 +179,6 @@ preclean() {
     update_virtuals
 }
 
-# This is to clean out the old .ph files generated in our last perl install
-ph_clean() {
-    local file i
-    vecho 1
-    veinfo 1 "Beginning a clean up of .ph files"
-    veinfo 1 "Excluding files for ${version} and ${version}/${archname} from cleaning"
-    vecho 1
-
-    veinfo 1 "Locating ph files for removal"
-    eindent ""
-    for i in "@GENTOO_PORTAGE_EPREFIX@"/usr/lib{,64,x32}/perl5 ; do
-        [[ ! -d ${i} ]] && continue
-        veinfo 4 "...in ${i}"
-        while IFS= read -r -d $'\0' file ; do
-             if outdated_path "${file}" ; then
-                veinfo 2 "Removing: '${file}'"
-                ${PRETEND} || rm "${file}"
-            fi
-        done < <( find ${i} -name "*.ph" -type f -print0 2>/dev/null | sort -zu )
-        # Silently remove those dirs that we just emptied
-        find "${i}" -depth -type d 2>/dev/null | grep -v "${gversion}" | xargs -r rmdir 2>/dev/null
-    done
-    eoutdent
-}
-
 update_packages(){
     local content exp lib broken_libs
 
@@ -462,9 +437,8 @@ Options:
   --modules                Rebuild perl modules for old installs of perl
   --allmodules             Rebuild all perl modules
   --libperl                Rebuild anything linked against libperl
-  --ph-clean               Clean out old ph files from a previous perl
-  --all                    Short for --modules --libperl --ph-clean
-  --reallyall              Short for --allmodules --libperl --ph-clean
+  --all                    Short for --modules --libperl
+  --reallyall              Short for --allmodules --libperl
   --dont-delete-leftovers  Do not delete known, typical leftover files
   -P PM, --package-manager PM
                            Use package manager PM, where PM can be one of:
@@ -560,23 +534,21 @@ while [[ -n "$1" ]] ; do
             LIBPERL=true
             ;;
         --ph-clean|ph-clean)
-            PHCLEAN=true
+            echo "ph-clean option is obsolete"
             ;;
         --phall|phall)
-            PHCLEAN=true
+            echo "phall option is obsolete"
             ;;
         --all|all)
             PRECLEAN=true
             MODULES=true
             LIBPERL=true
-            PHCLEAN=true
             LEFTOVERS=true
             ;;
         --reallyall|reallyall)
             PRECLEAN=true
             MODULES=true
             LIBPERL=true
-            PHCLEAN=true
             LEFTOVERS=true
             FORCE=true
             ;;
@@ -641,8 +613,6 @@ veinfo 3 "vendorlibexp path: ${vendorlibexp}"
 ${FORCE} && version="0.0.0" && gversion="0\.0\.0"
 
 ${PRECLEAN} && preclean
-
-${PHCLEAN} && ph_clean
 
 (${MODULES} || ${LIBPERL}) && update_packages
 
