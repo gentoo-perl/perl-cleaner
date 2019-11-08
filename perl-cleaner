@@ -454,21 +454,20 @@ ${0##*/} -- Find & rebuild packages and Perl header files broken due to a perl u
 Usage: $0 [OPTION]
 
 Options:
-  -h, --help         Print usage
-  -V, --version      Print version
-  -p, --pretend      Pretend (don't do anything)
-  -v, --verbose      Increase verbosity (may be specified multiple times)
-  -q, --quiet        Decrease verbosity
-  --modules          Rebuild perl modules for old installs of perl
-  --allmodules       Rebuild all perl modules
-  --libperl          Rebuild anything linked against libperl
-  --ph-clean         Clean out old ph files from a previous perl
-  --all              Short for --modules --libperl --ph-clean
-  --reallyall        Short for --allmodules --libperl --ph-clean
-  --leftovers        Shows all files that were not rebuilt
-  --delete-leftovers Deletes known, typical leftover files
+  -h, --help               Print usage
+  -V, --version            Print version
+  -p, --pretend            Pretend (don't do anything)
+  -v, --verbose            Increase verbosity (may be specified multiple times)
+  -q, --quiet              Decrease verbosity
+  --modules                Rebuild perl modules for old installs of perl
+  --allmodules             Rebuild all perl modules
+  --libperl                Rebuild anything linked against libperl
+  --ph-clean               Clean out old ph files from a previous perl
+  --all                    Short for --modules --libperl --ph-clean
+  --reallyall              Short for --allmodules --libperl --ph-clean
+  --dont-delete-leftovers  Do not delete known, typical leftover files
   -P PM, --package-manager PM
-                     Use package manager PM, where PM can be one of:
+                           Use package manager PM, where PM can be one of:
 $(for p in ${SUPPORTED_PMS} ; do
 echo -ne $'\t\t  '\* ${p}
 if [[ ${p} == portage ]] ; then
@@ -477,7 +476,7 @@ else
     echo
 fi
 done )
-  -- OPTIONS         Pass additional options to package manager (not recommended)
+  -- OPTIONS               Pass additional options to PM (not recommended)
 EOF_USAGE
 exit 0
 }
@@ -507,8 +506,8 @@ MODULES=false
 LIBPERL=false
 PHCLEAN=false
 FORCE=false
-LEFTOVERS=false
-DELETELEFTOVERS=false
+LEFTOVERS=true
+DELETELEFTOVERS=true
 PRETEND=false
 VERBOSE=1
 
@@ -546,6 +545,9 @@ while [[ -n "$1" ]] ; do
             ;;
         --delete-leftovers|delete-leftovers)
             DELETELEFTOVERS=true
+            ;;
+        --dont-delete-leftovers|dont-delete-leftovers)
+            DELETELEFTOVERS=false
             ;;
         --modules|modules)
             MODULES=true
