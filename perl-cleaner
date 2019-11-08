@@ -410,7 +410,7 @@ leftovers() {
 
     for file in "${outdated_files[@]}" ; do
         if hasr "$file" "${KNOWN_LEFTOVERS[@]}" ; then
-            if ${DELETELEFTOVERS} ; then
+            if ${DELETELEFTOVERS} && ! ${PRETEND} ; then
                 veinfo 1 "    $file  : known, deleted"
                 rm "$file"
 	    else
