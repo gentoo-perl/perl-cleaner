@@ -343,15 +343,6 @@ update_packages(){
            hasl "${pkr}" "${KNOWN_REBUILDS[@]}" || PKGS_BUGLIST+="${pkr} "
         done
 
-#        if [[ -n ${PKGS_BUGLIST} ]] ; then
-#            veinfo 0 "If you have just updated your major Perl version (e.g. from 5.20.2 to 5.22.0),"
-#            veinfo 0 "and have run perl-cleaner _after_ that update, then this means most likely"
-#            veinfo 0 "that these packages are buggy. Please file a bug on http://bugs.gentoo.org/ and"
-#            veinfo 0 "report that perl-cleaner needed to reinstall the following list:"
-#            veinfo 0 "  ${PKGS_BUGLIST}"
-#            veinfo 0 ""
-#            veinfo 0 "(Known problems have already been filtered from that list.)"
-#	fi
     else
         veinfo 1 "No package needs to be reinstalled."
     fi
