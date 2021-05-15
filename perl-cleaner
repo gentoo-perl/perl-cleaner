@@ -191,7 +191,7 @@ update_packages(){
             ewarn "--libperl is disbled."
             LIBPERL=false
         else
-            SONAME="$(${scanelf} -qBS "$(realpath "@GENTOO_PORTAGE_EPREFIX@"/usr/lib/libperl.{so,dylib} 2>/dev/null )" | awk '{ print $1 }')"
+            SONAME=$(${scanelf} -qBS $(realpath "@GENTOO_PORTAGE_EPREFIX@"/usr/lib{,32,64,64/lp64,64/lp64d}/libperl.{so,dylib} 2>/dev/null ) | awk '{ print $1 }')
             veinfo 4 SONAME="${SONAME}"
         fi
     fi
