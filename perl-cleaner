@@ -1,9 +1,9 @@
 #!@GENTOO_PORTAGE_EPREFIX@/bin/bash
 # vim: set et sw=4 sts=4 tw=80:
-# Copyright 2005-2019 Gentoo Authors
+# Copyright 2005-2021 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
-PERL_CLEANER_VERSION=2.28
+PERL_CLEANER_VERSION=2.29
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
