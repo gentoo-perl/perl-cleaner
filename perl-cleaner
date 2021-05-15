@@ -572,6 +572,12 @@ fi
 # version=
 eval $(perl -V:version )
 veinfo 3 "Installed perl version: ${version}"
+[[ ${version} == 5.32.* ]] && version=5.32 && veinfo 3 "Simplified perl version: ${version}"
+[[ ${version} == 5.33.* ]] && version=5.33 && veinfo 3 "Simplified perl version: ${version}"
+[[ ${version} == 5.34.* ]] && version=5.34 && veinfo 3 "Simplified perl version: ${version}"
+[[ ${version} == 5.35.* ]] && version=5.35 && veinfo 3 "Simplified perl version: ${version}"
+[[ ${version} == 5.36.* ]] && version=5.36 && veinfo 3 "Simplified perl version: ${version}"
+# and after 5.36 we can do this unconditionally
 # archname=
 eval $(perl -V:archname )
 veinfo 3 "Installed perl archname: ${archname}"
