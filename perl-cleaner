@@ -3,7 +3,7 @@
 # Copyright 2005-2021 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
-PERL_CLEANER_VERSION=2.29
+PERL_CLEANER_VERSION=2.30
 
 SUPPORTED_PMS="portage pkgcore paludis"
 PMS_COMMAND=( "emerge" "pmerge" "cave resolve" )
