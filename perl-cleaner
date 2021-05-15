@@ -48,14 +48,6 @@ KNOWN_LEFTOVERS=(
     PDL/Index.pod PDL/pdldoc.db
 )
 
-KNOWN_REBUILDS=(
-    perl-core/ virtual/perl- dev-perl/
-    sys-apps/texinfo  # bug 585048
-    www-client/elinks app-admin/stow dev-vcs/git net-fs/samba net-analyzer/nagios-core app-text/po4a # bug 593788
-    media-gfx/graphviz # bug 613838
-    app-editors/vim net-irc/irssi # bug 614194
-)
-
 # See bug 504116 for details
 if [ -e "@GENTOO_PORTAGE_EPREFIX@/lib/gentoo/functions.sh" ]; then
     . "@GENTOO_PORTAGE_EPREFIX@/lib/gentoo/functions.sh"
@@ -337,12 +329,6 @@ update_packages(){
         veinfo 0 ""
 
         IFS=' ' read -r -a PKGSARRAYRAW <<< "${PKGS_TO_REMERGE}"
-        # now filter out all that we do know about
-        PKGS_BUGLIST=""
-        for pkr in "${PKGSARRAYRAW[@]}" ; do
-           hasl "${pkr}" "${KNOWN_REBUILDS[@]}" || PKGS_BUGLIST+="${pkr} "
-        done
-
     else
         veinfo 1 "No package needs to be reinstalled."
     fi
