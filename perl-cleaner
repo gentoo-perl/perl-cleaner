@@ -525,10 +525,10 @@ while [[ -n "$1" ]] ; do
             LIBPERL=true
             ;;
         --ph-clean|ph-clean)
-            echo "ph-clean option is obsolete"
+            echo "The --ph-clean option is obsolete and will be ignored"
             ;;
         --phall|phall)
-            echo "phall option is obsolete"
+            echo "The --phall option is obsolete and weill be ignored"
             ;;
         --all|all)
             PRECLEAN=true
